@@ -11,14 +11,17 @@ export class RoutingTableComponent extends ComponentDef {
   readonly icon = GitFork;
   readonly configTitle = 'Routing Config';
   readonly configItems = [
-    'Static routes',
-    'Policy routing rules',
-    'Default gateway',
+    'ip_route_input() / ip_route_output()',
+    'Local delivery vs. forward decision',
+    'Policy routing (ip rule)',
   ] as const;
-  // Traffic arrives from the top; multiple routes leave from the bottom.
+  // Routing sits at the intersection of ingress and egress paths; 'any' on all
+  // anchors because it handles both directions depending on context.
+  // N: arrives from nftables prerouting (ingress) or local socket (egress).
+  // S: two outputs — local delivery and forwarding/egress output.
   readonly anchors = [
-    { side: 'N', count: 1 },
-    { side: 'S', count: 2 },
+    { side: 'N', count: 1, flow: 'any' as const },
+    { side: 'S', count: 2, flow: 'any' as const },
   ] as const;
 }
 

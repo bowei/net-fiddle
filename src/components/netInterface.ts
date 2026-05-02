@@ -15,12 +15,13 @@ export class NetInterfaceComponent extends ComponentDef {
     'veth pairs, bridges, etc.',
     'MTU, MAC address settings',
   ] as const;
-  // Interfaces connect to many things; expose a port on every side.
+  // S: wire (physical connection to network or peer interface).
+  // W: ingress path exits left toward XDP → TC-rx → nftables prerouting.
+  // E: egress path enters right from TC-tx → qdisc.
   readonly anchors = [
-    { side: 'N', count: 1 },
-    { side: 'E', count: 1 },
-    { side: 'S', count: 1 },
-    { side: 'W', count: 1 },
+    { side: 'S', count: 1, flow: 'any' as const },
+    { side: 'W', count: 1, flow: 'ingress' as const },
+    { side: 'E', count: 1, flow: 'egress' as const },
   ] as const;
 }
 

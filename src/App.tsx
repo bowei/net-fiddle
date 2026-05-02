@@ -3,6 +3,7 @@ import {
   useCallback,
   useRef,
   useEffect,
+  useMemo,
   DragEvent,
 } from 'react';
 import ReactFlow, {
@@ -23,8 +24,9 @@ import 'reactflow/dist/style.css';
 
 import CustomNode, { type NetNodeData } from './CustomNode';
 import ContainerNode from './ContainerNode';
-import { REGISTRY, SIDEBAR_ITEMS } from './components/registry';
+import { REGISTRY, SIDEBAR_GROUPS } from './components/registry';
 import { ContainerComponentDef } from './components/base';
+import { resolveHandles } from './anchorUtils';
 import { DragContext } from './DragContext';
 import {
   Upload,
@@ -39,59 +41,98 @@ const nodeTypes = {
   containerNode: ContainerNode,
 };
 
-// Returns the canvas-absolute position of a node, accounting for parent offset.
-// Container nodes are always top-level, so positionAbsolute is their actual position.
 function absolutePosition(node: Node): XYPosition {
   return node.positionAbsolute ?? node.position;
 }
 
-// Finds the topmost container node whose bounding box contains the given canvas point.
 function findContainerAt(pos: XYPosition, containers: Node[]): Node | undefined {
   return containers.find((c) => {
     const w = c.width ?? (c.style?.width as number) ?? 300;
     const h = c.height ?? (c.style?.height as number) ?? 200;
-    return (
-      pos.x >= c.position.x &&
-      pos.x <= c.position.x + w &&
-      pos.y >= c.position.y &&
-      pos.y <= c.position.y + h
-    );
+    return pos.x >= c.position.x && pos.x <= c.position.x + w &&
+           pos.y >= c.position.y && pos.y <= c.position.y + h;
   });
+}
+
+/**
+ * Checks whether the two handles connected by an edge carry compatible flow
+ * directions. Returns 'mismatch' only when both sides declare a concrete
+ * direction (ingress or egress) and they differ.
+ */
+function edgeFlowCompatible(edge: Edge, nodes: Node<NetNodeData>[]): boolean {
+  if (!edge.sourceHandle || !edge.targetHandle) return true;
+  const src = nodes.find((n) => n.id === edge.source);
+  const tgt = nodes.find((n) => n.id === edge.target);
+  if (!src || !tgt) return true;
+  const srcDef = REGISTRY.get(src.data.nodeType);
+  const tgtDef = REGISTRY.get(tgt.data.nodeType);
+  if (!srcDef || !tgtDef) return true;
+
+  // Strip the '-s'/'-t' suffix added by CustomNode to get the base handle id.
+  const srcHandleId = edge.sourceHandle.replace(/-[st]$/, '');
+  const tgtHandleId = edge.targetHandle.replace(/-[st]$/, '');
+
+  const srcHandle = resolveHandles(srcDef.getAnchors(src.data.config ?? {}))
+    .find((h) => h.id === srcHandleId);
+  const tgtHandle = resolveHandles(tgtDef.getAnchors(tgt.data.config ?? {}))
+    .find((h) => h.id === tgtHandleId);
+
+  if (!srcHandle || !tgtHandle) return true;
+  if (srcHandle.flow === 'any' || tgtHandle.flow === 'any') return true;
+  return srcHandle.flow === tgtHandle.flow;
 }
 
 const SAMPLE_NODES: Node<NetNodeData>[] = [
   {
     id: 'ns-1',
     type: 'containerNode',
-    position: { x: 40, y: 40 },
-    style: { width: 320, height: 240 },
+    position: { x: 30, y: 30 },
+    style: { width: 360, height: 400 },
     zIndex: -1,
     data: { nodeType: 'namespace', label: 'ns-1' },
   },
   {
-    id: 'interface-1',
+    id: 'socket-1',
     type: 'netNode',
     parentNode: 'ns-1',
-    position: { x: 80, y: 80 },
-    data: { nodeType: 'interface', label: 'interface-1' },
+    position: { x: 110, y: 30 },
+    data: { nodeType: 'socket', label: 'socket-1' },
   },
   {
-    id: 'nftables-2',
+    id: 'nft-out-1',
     type: 'netNode',
-    position: { x: 430, y: 80 },
-    data: { nodeType: 'nftables', label: 'nftables-2' },
+    parentNode: 'ns-1',
+    position: { x: 100, y: 120 },
+    data: { nodeType: 'nftables-output', label: 'nft-out-1' },
   },
   {
-    id: 'tc-3',
+    id: 'iface-1',
     type: 'netNode',
-    position: { x: 430, y: 200 },
-    data: { nodeType: 'traffic-control', label: 'tc-3' },
+    parentNode: 'ns-1',
+    position: { x: 110, y: 220 },
+    data: { nodeType: 'interface', label: 'eth0' },
+  },
+  {
+    id: 'xdp-1',
+    type: 'netNode',
+    parentNode: 'ns-1',
+    position: { x: 20, y: 310 },
+    data: { nodeType: 'xdp-program', label: 'xdp-1' },
+  },
+  {
+    id: 'tc-rx-1',
+    type: 'netNode',
+    parentNode: 'ns-1',
+    position: { x: 220, y: 310 },
+    data: { nodeType: 'traffic-control', label: 'tc-rx', config: { direction: 'ingress' } },
   },
 ];
 
 const SAMPLE_EDGES = [
-  { id: 'e1-2', source: 'interface-1', target: 'nftables-2' },
-  { id: 'e1-3', source: 'interface-1', target: 'tc-3' },
+  { id: 'e-sock-out', source: 'socket-1', sourceHandle: 'N-0-s', target: 'nft-out-1', targetHandle: 'N-0-t' },
+  { id: 'e-out-iface', source: 'nft-out-1', sourceHandle: 'S-0-s', target: 'iface-1', targetHandle: 'E-0-t' },
+  { id: 'e-iface-xdp', source: 'iface-1', sourceHandle: 'W-0-s', target: 'xdp-1', targetHandle: 'N-0-t' },
+  { id: 'e-iface-tc', source: 'iface-1', sourceHandle: 'W-0-s', target: 'tc-rx-1', targetHandle: 'N-0-t' },
 ];
 
 export default function App() {
@@ -105,12 +146,22 @@ export default function App() {
   const counters = useRef<Record<string, number>>({});
   const edgeReconnectSuccessful = useRef(true);
 
+  // Derive edges with mismatch styling; avoids touching the edges state on every render.
+  const styledEdges = useMemo(
+    () =>
+      edges.map((e) =>
+        edgeFlowCompatible(e, nodes)
+          ? e
+          : { ...e, style: { ...e.style, stroke: '#ef4444', strokeWidth: 2 }, label: '⚠' }
+      ),
+    [edges, nodes]
+  );
+
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
     [setEdges]
   );
 
-  // Mark drag as not yet resolved; onEdgeUpdate will flip this to true on success.
   const onEdgeReconnectStart = useCallback(() => {
     edgeReconnectSuccessful.current = false;
   }, []);
@@ -123,7 +174,6 @@ export default function App() {
     [setEdges]
   );
 
-  // Drop without landing on a handle → delete the edge.
   const onEdgeReconnectEnd = useCallback(
     (_: MouseEvent | TouchEvent, edge: Edge) => {
       if (!edgeReconnectSuccessful.current) {
@@ -138,9 +188,7 @@ export default function App() {
     setSelectedNode(node);
   }, []);
 
-  const onPaneClick = useCallback(() => {
-    setSelectedNode(null);
-  }, []);
+  const onPaneClick = useCallback(() => setSelectedNode(null), []);
 
   const nextLabel = (nodeType: string): string => {
     const def = REGISTRY.get(nodeType);
@@ -149,8 +197,6 @@ export default function App() {
     counters.current[nodeType] = count;
     return `${prefix}-${count}`;
   };
-
-  // --- Sidebar drag-drop onto canvas ---
 
   const onDragStart = (event: DragEvent<HTMLDivElement>, nodeType: string) => {
     event.dataTransfer.setData('application/netfiddle', nodeType);
@@ -164,10 +210,7 @@ export default function App() {
       setIsDragOver(true);
       if (!rfInstance || !wrapperRef.current) return;
       const bounds = wrapperRef.current.getBoundingClientRect();
-      const pos = rfInstance.project({
-        x: event.clientX - bounds.left,
-        y: event.clientY - bounds.top,
-      });
+      const pos = rfInstance.project({ x: event.clientX - bounds.left, y: event.clientY - bounds.top });
       const found = findContainerAt(pos, nodes.filter((n) => n.type === 'containerNode'));
       setHoverContainerId(found?.id ?? null);
     },
@@ -186,142 +229,99 @@ export default function App() {
       setHoverContainerId(null);
       const nodeType = event.dataTransfer.getData('application/netfiddle');
       if (!nodeType || !rfInstance || !wrapperRef.current) return;
-
       const def = REGISTRY.get(nodeType);
       if (!def) return;
 
       const bounds = wrapperRef.current.getBoundingClientRect();
-      const canvasPos = rfInstance.project({
-        x: event.clientX - bounds.left,
-        y: event.clientY - bounds.top,
-      });
-
+      const canvasPos = rfInstance.project({ x: event.clientX - bounds.left, y: event.clientY - bounds.top });
       const label = nextLabel(nodeType);
 
       if (def instanceof ContainerComponentDef) {
-        const newNode: Node<NetNodeData> = {
-          id: label,
-          type: 'containerNode',
-          position: canvasPos,
+        setNodes((nds) => [...nds, {
+          id: label, type: 'containerNode', position: canvasPos, zIndex: -1,
           style: { width: def.defaultWidth, height: def.defaultHeight },
-          zIndex: -1,
           data: { nodeType, label },
-        };
-        setNodes((nds) => [...nds, newNode]);
+        }]);
       } else {
-        const containers = nodes.filter((n) => n.type === 'containerNode');
-        const parent = findContainerAt(canvasPos, containers);
-        const newNode: Node<NetNodeData> = {
-          id: label,
-          type: 'netNode',
+        const parent = findContainerAt(canvasPos, nodes.filter((n) => n.type === 'containerNode'));
+        setNodes((nds) => [...nds, {
+          id: label, type: 'netNode',
           position: parent
             ? { x: canvasPos.x - parent.position.x, y: canvasPos.y - parent.position.y }
             : canvasPos,
           ...(parent ? { parentNode: parent.id } : {}),
           data: { nodeType, label },
-        };
-        setNodes((nds) => [...nds, newNode]);
+        }]);
       }
     },
     [nodes, rfInstance, setNodes]
   );
 
-  // --- Canvas node drag (for drop-target highlight feedback) ---
-
   const onNodeDrag = useCallback(
     (_: React.MouseEvent, draggedNode: Node<NetNodeData>) => {
-      if (draggedNode.type === 'containerNode') {
-        setHoverContainerId(null);
-        return;
-      }
+      if (draggedNode.type === 'containerNode') { setHoverContainerId(null); return; }
       const absPos = absolutePosition(draggedNode);
-      const found = findContainerAt(
-        absPos,
-        nodes.filter((n) => n.type === 'containerNode' && n.id !== draggedNode.parentNode)
-      );
+      const found = findContainerAt(absPos, nodes.filter((n) => n.type === 'containerNode' && n.id !== draggedNode.parentNode));
       setHoverContainerId(found?.id ?? null);
     },
     [nodes]
   );
 
-  // Reparent a node after it has been dropped:
-  // - If it landed inside a container it wasn't already in → assign parentNode
-  // - If it was a child and landed outside all containers → remove parentNode
   const onNodeDragStop = useCallback(
     (_: React.MouseEvent, draggedNode: Node<NetNodeData>) => {
       setHoverContainerId(null);
       if (draggedNode.type === 'containerNode') return;
-
       const absPos = absolutePosition(draggedNode);
-      const containers = nodes.filter((n) => n.type === 'containerNode');
-      const newParent = findContainerAt(absPos, containers);
-      const oldParentId = draggedNode.parentNode;
-
-      if (newParent?.id === oldParentId) return; // no change
-
-      setNodes((nds) =>
-        nds.map((n) => {
-          if (n.id !== draggedNode.id) return n;
-          if (newParent) {
-            return {
-              ...n,
-              parentNode: newParent.id,
-              position: {
-                x: absPos.x - newParent.position.x,
-                y: absPos.y - newParent.position.y,
-              },
-            };
-          }
-          // leaving a container — restore absolute position, drop parentNode
-          return { ...n, parentNode: undefined, position: absPos };
-        })
-      );
+      const newParent = findContainerAt(absPos, nodes.filter((n) => n.type === 'containerNode'));
+      if (newParent?.id === draggedNode.parentNode) return;
+      setNodes((nds) => nds.map((n) => {
+        if (n.id !== draggedNode.id) return n;
+        if (newParent) return {
+          ...n, parentNode: newParent.id,
+          position: { x: absPos.x - newParent.position.x, y: absPos.y - newParent.position.y },
+        };
+        return { ...n, parentNode: undefined, position: absPos };
+      }));
     },
     [nodes, setNodes]
   );
-
-  // --- CRUD actions ---
 
   const deleteSelected = useCallback(() => {
     if (!selectedNode) return;
     setNodes((nds) => {
       const toDelete = new Set([selectedNode.id]);
-      // Delete children when a container is removed
       if (selectedNode.type === 'containerNode') {
         nds.forEach((n) => { if (n.parentNode === selectedNode.id) toDelete.add(n.id); });
       }
       return nds.filter((n) => !toDelete.has(n.id));
     });
-    setEdges((eds) =>
-      eds.filter((e) => e.source !== selectedNode.id && e.target !== selectedNode.id)
-    );
+    setEdges((eds) => eds.filter((e) => e.source !== selectedNode.id && e.target !== selectedNode.id));
     setSelectedNode(null);
   }, [selectedNode, setNodes, setEdges]);
 
   const updateLabel = (label: string) => {
     if (!selectedNode) return;
-    setNodes((nds) =>
-      nds.map((n) => (n.id === selectedNode.id ? { ...n, data: { ...n.data, label } } : n))
-    );
-    setSelectedNode((prev) => (prev ? { ...prev, data: { ...prev.data, label } } : null));
+    setNodes((nds) => nds.map((n) => n.id === selectedNode.id ? { ...n, data: { ...n.data, label } } : n));
+    setSelectedNode((p) => p ? { ...p, data: { ...p.data, label } } : null);
+  };
+
+  const updateConfig = (key: string, value: string) => {
+    if (!selectedNode) return;
+    const config = { ...selectedNode.data.config, [key]: value };
+    setNodes((nds) => nds.map((n) => n.id === selectedNode.id ? { ...n, data: { ...n.data, config } } : n));
+    setSelectedNode((p) => p ? { ...p, data: { ...p.data, config } } : null);
   };
 
   const updatePosition = (axis: 'x' | 'y', value: number) => {
     if (!selectedNode) return;
-    setNodes((nds) =>
-      nds.map((n) =>
-        n.id === selectedNode.id
-          ? { ...n, position: { ...n.position, [axis]: value } }
-          : n
-      )
-    );
-    setSelectedNode((prev) =>
-      prev ? { ...prev, position: { ...prev.position, [axis]: value } } : null
-    );
+    setNodes((nds) => nds.map((n) =>
+      n.id === selectedNode.id ? { ...n, position: { ...n.position, [axis]: value } } : n
+    ));
+    setSelectedNode((p) => p ? { ...p, position: { ...p.position, [axis]: value } } : null);
   };
 
   const loadSample = () => {
-    counters.current = { namespace: 1, interface: 1, nftables: 2, 'traffic-control': 3 };
+    counters.current = { namespace: 1, socket: 1, 'nft:out': 1, interface: 1, xdp: 1, tc: 1 };
     setNodes(SAMPLE_NODES);
     setEdges(SAMPLE_EDGES);
     setSelectedNode(null);
@@ -335,13 +335,9 @@ export default function App() {
   };
 
   const doExport = () => {
-    const data = JSON.stringify({ nodes, edges }, null, 2);
-    const blob = new Blob([data], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify({ nodes, edges }, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'net-fiddle.json';
-    a.click();
+    Object.assign(document.createElement('a'), { href: url, download: 'net-fiddle.json' }).click();
     URL.revokeObjectURL(url);
   };
 
@@ -359,27 +355,22 @@ export default function App() {
           setNodes(parsed.nodes ?? []);
           setEdges(parsed.edges ?? []);
           setSelectedNode(null);
-        } catch {
-          alert('Invalid JSON file');
-        }
+        } catch { alert('Invalid JSON file'); }
       };
       reader.readAsText(file);
     };
     input.click();
   };
 
-  // Keep selectedNode in sync when nodes move on the canvas.
   useEffect(() => {
     if (!selectedNode) return;
     const updated = nodes.find((n) => n.id === selectedNode.id);
     if (updated) setSelectedNode(updated);
   }, [nodes]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (document.activeElement?.tagName === 'INPUT') return;
+      if ((e.key === 'Delete' || e.key === 'Backspace') && document.activeElement?.tagName !== 'INPUT') {
         deleteSelected();
       }
       if (e.key === 'Escape') setSelectedNode(null);
@@ -393,7 +384,6 @@ export default function App() {
 
   return (
     <div className="app">
-      {/* Header */}
       <header className="header">
         <div className="header-title">
           <FlaskConical size={20} color="#6366f1" />
@@ -401,62 +391,42 @@ export default function App() {
           <span className="component-count">{nodes.length} components</span>
         </div>
         <div className="header-actions">
-          <button className="btn btn-primary" onClick={loadSample}>
-            <FlaskConical size={14} />
-            Load Sample
-          </button>
-          <button className="btn btn-secondary" onClick={doImport}>
-            <Upload size={14} />
-            Import
-          </button>
-          <button className="btn btn-success" onClick={doExport}>
-            <Download size={14} />
-            Export
-          </button>
-          <button className="btn btn-danger" onClick={clearAll}>
-            <Trash2 size={14} />
-            Clear All
-          </button>
+          <button className="btn btn-primary" onClick={loadSample}><FlaskConical size={14} /> Load Sample</button>
+          <button className="btn btn-secondary" onClick={doImport}><Upload size={14} /> Import</button>
+          <button className="btn btn-success" onClick={doExport}><Download size={14} /> Export</button>
+          <button className="btn btn-danger" onClick={clearAll}><Trash2 size={14} /> Clear All</button>
         </div>
       </header>
 
       <div className="body">
-        {/* Sidebar */}
         <aside className="sidebar">
-          <div>
-            <div className="sidebar-section-title">Network Components</div>
-            {SIDEBAR_ITEMS.map((def) => {
-              const Icon = def.icon;
-              return (
-                <div
-                  key={def.type}
-                  className="component-item"
-                  draggable
-                  onDragStart={(e) => onDragStart(e, def.type)}
-                >
-                  <div className="component-icon">
-                    <Icon size={16} color={def.color} />
+          {SIDEBAR_GROUPS.map((group) => (
+            <div key={group.label}>
+              <div className="sidebar-group-label">{group.label}</div>
+              {group.items.map((def) => {
+                const Icon = def.icon;
+                return (
+                  <div key={def.type} className="component-item" draggable onDragStart={(e) => onDragStart(e, def.type)}>
+                    <div className="component-icon"><Icon size={16} color={def.color} /></div>
+                    {def.label}
                   </div>
-                  {def.label}
-                </div>
-              );
-            })}
-          </div>
-
+                );
+              })}
+            </div>
+          ))}
           <div className="quick-guide">
             <div className="quick-guide-title">Quick Guide</div>
             <ul>
               <li>Drag components to canvas</li>
-              <li>Click to select and edit</li>
-              <li>Drag nodes to reposition</li>
               <li>Drop onto namespace to nest</li>
               <li>Drag handle to connect</li>
-              <li>Del to delete selected</li>
+              <li><span className="flow-legend ingress" /> blue = ingress</li>
+              <li><span className="flow-legend egress" /> amber = egress</li>
+              <li>Red edge = flow mismatch</li>
             </ul>
           </div>
         </aside>
 
-        {/* Canvas */}
         <div
           ref={wrapperRef}
           className={`canvas-wrapper${isDragOver ? ' drag-over' : ''}`}
@@ -467,7 +437,7 @@ export default function App() {
           <DragContext.Provider value={hoverContainerId}>
             <ReactFlow
               nodes={nodes}
-              edges={edges}
+              edges={styledEdges}
               onNodesChange={onNodesChange}
               onEdgesChange={onEdgesChange}
               onConnect={onConnect}
@@ -489,18 +459,13 @@ export default function App() {
           </DragContext.Provider>
         </div>
 
-        {/* Properties Panel */}
         {selectedNode && selectedDef && (
           <aside className="properties-panel">
             <div className="properties-header">
               <span className="properties-title">Properties</span>
               <div className="properties-header-actions">
-                <button className="icon-btn danger" title="Delete" onClick={deleteSelected}>
-                  <Trash2 size={15} />
-                </button>
-                <button className="icon-btn" title="Close" onClick={() => setSelectedNode(null)}>
-                  <X size={15} />
-                </button>
+                <button className="icon-btn danger" title="Delete" onClick={deleteSelected}><Trash2 size={15} /></button>
+                <button className="icon-btn" title="Close" onClick={() => setSelectedNode(null)}><X size={15} /></button>
               </div>
             </div>
 
@@ -511,12 +476,22 @@ export default function App() {
 
             <div className="prop-group">
               <span className="prop-label">Label</span>
-              <input
-                className="prop-input"
-                value={selectedNode.data.label}
-                onChange={(e) => updateLabel(e.target.value)}
-              />
+              <input className="prop-input" value={selectedNode.data.label} onChange={(e) => updateLabel(e.target.value)} />
             </div>
+
+            {/* Config dropdowns (e.g. TC direction, qdisc type) */}
+            {selectedDef.configFields.map((field) => (
+              <div className="prop-group" key={field.key}>
+                <span className="prop-label">{field.label}</span>
+                <select
+                  className="prop-input prop-select"
+                  value={selectedNode.data.config?.[field.key] ?? field.default}
+                  onChange={(e) => updateConfig(field.key, e.target.value)}
+                >
+                  {field.options.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                </select>
+              </div>
+            ))}
 
             {!selectedIsContainer && (
               <div className="prop-group">
@@ -524,21 +499,11 @@ export default function App() {
                 <div className="position-row">
                   <div className="position-field">
                     <label>X</label>
-                    <input
-                      className="prop-input"
-                      type="number"
-                      value={Math.round(selectedNode.position.x)}
-                      onChange={(e) => updatePosition('x', Number(e.target.value))}
-                    />
+                    <input className="prop-input" type="number" value={Math.round(selectedNode.position.x)} onChange={(e) => updatePosition('x', Number(e.target.value))} />
                   </div>
                   <div className="position-field">
                     <label>Y</label>
-                    <input
-                      className="prop-input"
-                      type="number"
-                      value={Math.round(selectedNode.position.y)}
-                      onChange={(e) => updatePosition('y', Number(e.target.value))}
-                    />
+                    <input className="prop-input" type="number" value={Math.round(selectedNode.position.y)} onChange={(e) => updatePosition('y', Number(e.target.value))} />
                   </div>
                 </div>
               </div>
@@ -550,25 +515,11 @@ export default function App() {
                 <div className="position-row">
                   <div className="position-field">
                     <label>W</label>
-                    <input
-                      className="prop-input"
-                      type="number"
-                      readOnly
-                      value={Math.round(
-                        (selectedNode.width ?? (selectedNode.style?.width as number) ?? 0)
-                      )}
-                    />
+                    <input className="prop-input" type="number" readOnly value={Math.round((selectedNode.width ?? (selectedNode.style?.width as number) ?? 0))} />
                   </div>
                   <div className="position-field">
                     <label>H</label>
-                    <input
-                      className="prop-input"
-                      type="number"
-                      readOnly
-                      value={Math.round(
-                        (selectedNode.height ?? (selectedNode.style?.height as number) ?? 0)
-                      )}
-                    />
+                    <input className="prop-input" type="number" readOnly value={Math.round((selectedNode.height ?? (selectedNode.style?.height as number) ?? 0))} />
                   </div>
                 </div>
               </div>
@@ -577,30 +528,18 @@ export default function App() {
             <div className="config-section">
               <div className="config-title">{selectedDef.configTitle}</div>
               <ul className="config-items">
-                {selectedDef.configItems.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
+                {selectedDef.configItems.map((item) => <li key={item}>{item}</li>)}
               </ul>
             </div>
           </aside>
         )}
       </div>
 
-      {/* Status Bar */}
       <footer className="status-bar">
         <div className="status-shortcuts">
-          <div className="shortcut">
-            <span className="kbd">Del</span>
-            Delete selected
-          </div>
-          <div className="shortcut">
-            <span className="kbd">Drag</span>
-            onto namespace to nest
-          </div>
-          <div className="shortcut">
-            <span className="kbd">Esc</span>
-            Deselect
-          </div>
+          <div className="shortcut"><span className="kbd">Del</span> Delete selected</div>
+          <div className="shortcut"><span className="kbd">Drag</span> handle to connect</div>
+          <div className="shortcut"><span className="kbd">Esc</span> Deselect</div>
         </div>
         <button className="status-help" title="Help">?</button>
       </footer>

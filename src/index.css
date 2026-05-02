@@ -101,6 +101,23 @@ html, body, #root {
   margin-bottom: 6px;
 }
 
+.sidebar-group-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 8px 0 3px;
+  border-top: 1px solid #f1f5f9;
+  margin-top: 4px;
+}
+
+.sidebar-group-label:first-child {
+  border-top: none;
+  margin-top: 0;
+  padding-top: 2px;
+}
+
 .component-item {
   display: flex;
   align-items: center;
@@ -161,6 +178,9 @@ html, body, #root {
   color: #64748b;
   padding-left: 8px;
   position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .quick-guide li::before {
@@ -169,6 +189,17 @@ html, body, #root {
   left: 0;
   color: #94a3b8;
 }
+
+.flow-legend {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.flow-legend.ingress { background: #3b82f6; }
+.flow-legend.egress  { background: #f59e0b; }
 
 /* Canvas */
 .canvas-wrapper {
@@ -309,6 +340,15 @@ html, body, #root {
 .prop-input:focus {
   border-color: #6366f1;
   background: white;
+}
+
+.prop-select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  padding-right: 28px;
 }
 
 .position-row {

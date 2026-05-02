@@ -3,17 +3,36 @@ import type { LucideIcon } from 'lucide-react';
 /** One of the four cardinal sides of a component box. */
 export type CardinalSide = 'N' | 'E' | 'S' | 'W';
 
+/** Direction of packet flow through an anchor point. */
+export type AnchorFlow = 'ingress' | 'egress' | 'any';
+
 /**
  * Declares one group of anchor points on a single side of the component box.
  * Handles are distributed evenly along that side: for `count` handles,
  * handle i sits at position (i+1)/(count+1) of the side length.
  *
- * NOTE: changing `anchors` on a type is a breaking change for saved topologies,
- * because React Flow edge records store the handle IDs derived from side+index.
+ * Multiple AnchorSpecs on the same side are merged before rendering so handles
+ * are spaced across the full side width without overlap.
+ *
+ * NOTE: changing `anchors` on a type is a breaking change for saved topologies
+ * because React Flow edge records store handle IDs derived from side + index.
  */
 export interface AnchorSpec {
   side: CardinalSide;
   count: number;
+  /** Packet flow direction this anchor carries. Used for visual color-coding and mismatch warnings. */
+  flow: AnchorFlow;
+}
+
+/**
+ * Declares a user-configurable property shown as a dropdown in the Properties panel.
+ * Subclasses expose these via `configFields`; values are stored in `NetNodeData.config`.
+ */
+export interface ConfigField {
+  key: string;
+  label: string;
+  options: readonly string[];
+  default: string;
 }
 
 /**
@@ -43,11 +62,25 @@ export abstract class ComponentDef {
   /** Bullet-point descriptions in the Properties panel config block. */
   abstract readonly configItems: readonly string[];
   /**
-   * Connection anchor points for this component type.
-   * Each entry places `count` handles evenly distributed along the named side.
-   * Use an empty array for types that should not be connectable.
+   * Default anchor layout. When the layout does not depend on runtime config,
+   * declare it here. Otherwise override `getAnchors()` and leave this as `[]`.
    */
   abstract readonly anchors: readonly AnchorSpec[];
+
+  /**
+   * Optional user-configurable properties shown as dropdowns in the Properties panel.
+   * Values are stored in NetNodeData.config and passed to `getAnchors()`.
+   */
+  readonly configFields: readonly ConfigField[] = [];
+
+  /**
+   * Returns the effective anchor layout for a given runtime config.
+   * Override when anchors depend on a configField value (e.g. TC direction).
+   * The default implementation ignores config and returns `this.anchors`.
+   */
+  getAnchors(_config: Record<string, string>): readonly AnchorSpec[] {
+    return this.anchors;
+  }
 }
 
 /**

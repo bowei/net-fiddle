@@ -1,14 +1,27 @@
 import { describe, it, expect } from 'vitest';
-import { REGISTRY, SIDEBAR_ITEMS } from '../components/registry';
+import { REGISTRY, SIDEBAR_ITEMS, SIDEBAR_GROUPS } from '../components/registry';
 import { ComponentDef, ContainerComponentDef } from '../components/base';
 import { namespace } from '../components/namespace';
 import { netInterface } from '../components/netInterface';
 import { routingTable } from '../components/routingTable';
-import { nftables } from '../components/nftables';
 import { trafficControl } from '../components/trafficControl';
-import { bpfProgram } from '../components/bpfProgram';
+import { xdpProgram } from '../components/xdpProgram';
+import { tcBpfProgram } from '../components/tcBpfProgram';
+import { nftablesPrerouting } from '../components/nftablesPrerouting';
+import { nftablesInput } from '../components/nftablesInput';
+import { nftablesForward } from '../components/nftablesForward';
+import { nftablesOutput } from '../components/nftablesOutput';
+import { nftablesPostrouting } from '../components/nftablesPostrouting';
+import { qdisc } from '../components/qdisc';
+import { socket } from '../components/socket';
 
-const ALL_DEFS = [namespace, netInterface, routingTable, nftables, trafficControl, bpfProgram];
+const ALL_DEFS = [
+  namespace, netInterface, routingTable, trafficControl,
+  xdpProgram, tcBpfProgram,
+  nftablesPrerouting, nftablesInput, nftablesForward, nftablesOutput, nftablesPostrouting,
+  qdisc, socket,
+];
+
 const CONTAINER_DEFS = ALL_DEFS.filter((d) => d instanceof ContainerComponentDef);
 const NODE_DEFS = ALL_DEFS.filter((d) => !(d instanceof ContainerComponentDef));
 
@@ -31,16 +44,15 @@ describe('ComponentDef subclasses', () => {
   });
 
   it('all defs are instances of ComponentDef', () => {
-    for (const def of ALL_DEFS) {
-      expect(def).toBeInstanceOf(ComponentDef);
-    }
+    for (const def of ALL_DEFS) expect(def).toBeInstanceOf(ComponentDef);
   });
 
-  it.each(ALL_DEFS)('$type has a valid anchors array', (def) => {
-    expect(Array.isArray(def.anchors)).toBe(true);
-    for (const { side, count } of def.anchors) {
+  it.each(ALL_DEFS)('$type anchors from getAnchors() have valid flow and side', (def) => {
+    const anchors = def.getAnchors({});
+    for (const { side, count, flow } of anchors) {
       expect(['N', 'E', 'S', 'W']).toContain(side);
       expect(count).toBeGreaterThan(0);
+      expect(['ingress', 'egress', 'any']).toContain(flow);
     }
   });
 });
@@ -51,9 +63,7 @@ describe('ContainerComponentDef', () => {
   });
 
   it('non-namespace types are plain nodes', () => {
-    for (const def of NODE_DEFS) {
-      expect(def).not.toBeInstanceOf(ContainerComponentDef);
-    }
+    for (const def of NODE_DEFS) expect(def).not.toBeInstanceOf(ContainerComponentDef);
   });
 
   it.each(CONTAINER_DEFS)('$type has valid container dimensions', (def) => {
@@ -67,11 +77,68 @@ describe('ContainerComponentDef', () => {
   });
 });
 
+describe('configFields', () => {
+  it('TC and TC BPF have a direction field', () => {
+    for (const def of [trafficControl, tcBpfProgram]) {
+      const field = def.configFields.find((f) => f.key === 'direction');
+      expect(field).toBeDefined();
+      expect(field!.options).toContain('ingress');
+      expect(field!.options).toContain('egress');
+    }
+  });
+
+  it('getAnchors() reflects direction config for TC', () => {
+    const rx = trafficControl.getAnchors({ direction: 'ingress' });
+    const tx = trafficControl.getAnchors({ direction: 'egress' });
+    expect(rx.every((a) => a.flow === 'ingress')).toBe(true);
+    expect(tx.every((a) => a.flow === 'egress')).toBe(true);
+  });
+
+  it('getAnchors() reflects direction config for TC BPF', () => {
+    const rx = tcBpfProgram.getAnchors({ direction: 'ingress' });
+    const tx = tcBpfProgram.getAnchors({ direction: 'egress' });
+    expect(rx.every((a) => a.flow === 'ingress')).toBe(true);
+    expect(tx.every((a) => a.flow === 'egress')).toBe(true);
+  });
+
+  it('XDP is always ingress regardless of config', () => {
+    const anchors = xdpProgram.getAnchors({ direction: 'egress' });
+    expect(anchors.every((a) => a.flow === 'ingress')).toBe(true);
+  });
+});
+
+describe('nftables hooks', () => {
+  it('prerouting and input are ingress-only', () => {
+    for (const def of [nftablesPrerouting, nftablesInput]) {
+      expect(def.anchors.every((a) => a.flow === 'ingress')).toBe(true);
+    }
+  });
+
+  it('output and postrouting are egress-only', () => {
+    for (const def of [nftablesOutput, nftablesPostrouting]) {
+      expect(def.anchors.every((a) => a.flow === 'egress')).toBe(true);
+    }
+  });
+
+  it('forward is flow-agnostic', () => {
+    expect(nftablesForward.anchors.every((a) => a.flow === 'any')).toBe(true);
+  });
+});
+
+describe('interface anchors', () => {
+  it('has a wire anchor (any), an ingress anchor (W), and an egress anchor (E)', () => {
+    const wire = netInterface.anchors.find((a) => a.flow === 'any');
+    const rx = netInterface.anchors.find((a) => a.flow === 'ingress');
+    const tx = netInterface.anchors.find((a) => a.flow === 'egress');
+    expect(wire).toBeDefined();
+    expect(rx).toBeDefined();
+    expect(tx).toBeDefined();
+  });
+});
+
 describe('REGISTRY', () => {
   it('contains every registered component', () => {
-    for (const def of ALL_DEFS) {
-      expect(REGISTRY.get(def.type)).toBe(def);
-    }
+    for (const def of ALL_DEFS) expect(REGISTRY.get(def.type)).toBe(def);
   });
 
   it('returns undefined for unknown types', () => {
@@ -86,8 +153,21 @@ describe('SIDEBAR_ITEMS', () => {
   });
 
   it('matches REGISTRY entries', () => {
-    for (const def of SIDEBAR_ITEMS) {
-      expect(REGISTRY.get(def.type)).toBe(def);
+    for (const def of SIDEBAR_ITEMS) expect(REGISTRY.get(def.type)).toBe(def);
+  });
+});
+
+describe('SIDEBAR_GROUPS', () => {
+  it('every group has a label and at least one item', () => {
+    for (const group of SIDEBAR_GROUPS) {
+      expect(group.label).toBeTruthy();
+      expect(group.items.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('all items across groups are registered', () => {
+    for (const group of SIDEBAR_GROUPS) {
+      for (const def of group.items) expect(REGISTRY.get(def.type)).toBe(def);
     }
   });
 });
