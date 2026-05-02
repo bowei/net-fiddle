@@ -432,6 +432,11 @@ html, body, #root {
   user-select: none;
 }
 
+/* Veth link edge — hide the reconnect handle dots to prevent dragging */
+.react-flow__edge.veth-link .react-flow__edgeupdater {
+  display: none;
+}
+
 /* Status Bar */
 .status-bar {
   display: flex;

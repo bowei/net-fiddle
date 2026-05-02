@@ -12,6 +12,13 @@ import { nftablesOutput } from './nftablesOutput';
 import { nftablesPostrouting } from './nftablesPostrouting';
 import { qdisc } from './qdisc';
 import { socket } from './socket';
+import { vethEnd } from './vethEnd';
+import { vethPair, type SidebarTemplate } from './vethPair';
+
+export type { SidebarTemplate };
+
+/** Sidebar item: either a real ComponentDef or a virtual template (e.g. Veth Pair). */
+export type SidebarItem = ComponentDef | SidebarTemplate;
 
 /**
  * A named group of component types shown together in the sidebar.
@@ -20,13 +27,13 @@ import { socket } from './socket';
  */
 export interface SidebarGroup {
   label: string;
-  items: readonly ComponentDef[];
+  items: readonly SidebarItem[];
 }
 
 export const SIDEBAR_GROUPS: readonly SidebarGroup[] = [
   {
     label: 'Network',
-    items: [namespace, netInterface, socket, routingTable, qdisc],
+    items: [namespace, netInterface, socket, routingTable, qdisc, vethPair],
   },
   {
     label: 'nftables',
@@ -44,14 +51,14 @@ export const SIDEBAR_GROUPS: readonly SidebarGroup[] = [
   },
 ];
 
-/** Flat ordered list of all registered components (sidebar order preserved). */
-export const SIDEBAR_ITEMS: readonly ComponentDef[] = SIDEBAR_GROUPS.flatMap(
-  (g) => g.items
+/** Flat ordered list of all registered ComponentDefs (SidebarTemplates excluded). */
+export const SIDEBAR_ITEMS: readonly ComponentDef[] = SIDEBAR_GROUPS.flatMap((g) =>
+  g.items.filter((item): item is ComponentDef => item instanceof Object && 'anchors' in item)
 );
 
-/** O(1) lookup by component type string. */
+/** O(1) lookup by component type string. Includes veth-end (not in sidebar) for canvas rendering. */
 export const REGISTRY: ReadonlyMap<string, ComponentDef> = new Map(
-  SIDEBAR_ITEMS.map((c) => [c.type, c])
+  [...SIDEBAR_ITEMS, vethEnd].map((c) => [c.type, c])
 );
 
 export type { ComponentDef };

@@ -149,11 +149,12 @@ export default function App() {
   // Derive edges with mismatch styling; avoids touching the edges state on every render.
   const styledEdges = useMemo(
     () =>
-      edges.map((e) =>
-        edgeFlowCompatible(e, nodes)
+      edges.map((e) => {
+        if (e.data?.vethLink) return e;
+        return edgeFlowCompatible(e, nodes)
           ? e
-          : { ...e, style: { ...e.style, stroke: '#ef4444', strokeWidth: 2 }, label: '⚠' }
-      ),
+          : { ...e, style: { ...e.style, stroke: '#ef4444', strokeWidth: 2 }, label: '⚠' };
+      }),
     [edges, nodes]
   );
 
@@ -162,12 +163,14 @@ export default function App() {
     [setEdges]
   );
 
-  const onEdgeReconnectStart = useCallback(() => {
+  const onEdgeReconnectStart = useCallback((_event: unknown, edge: Edge) => {
+    if (edge.data?.vethLink) { edgeReconnectSuccessful.current = true; return; }
     edgeReconnectSuccessful.current = false;
   }, []);
 
   const onEdgeReconnect = useCallback(
     (oldEdge: Edge, newConnection: Connection) => {
+      if (oldEdge.data?.vethLink) return;
       edgeReconnectSuccessful.current = true;
       setEdges((eds) => updateEdge(oldEdge, newConnection, eds));
     },
@@ -176,6 +179,7 @@ export default function App() {
 
   const onEdgeReconnectEnd = useCallback(
     (_: MouseEvent | TouchEvent, edge: Edge) => {
+      if (edge.data?.vethLink) return;
       if (!edgeReconnectSuccessful.current) {
         setEdges((eds) => eds.filter((e) => e.id !== edge.id));
       }
@@ -229,11 +233,43 @@ export default function App() {
       setHoverContainerId(null);
       const nodeType = event.dataTransfer.getData('application/netfiddle');
       if (!nodeType || !rfInstance || !wrapperRef.current) return;
-      const def = REGISTRY.get(nodeType);
-      if (!def) return;
 
       const bounds = wrapperRef.current.getBoundingClientRect();
       const canvasPos = rfInstance.project({ x: event.clientX - bounds.left, y: event.clientY - bounds.top });
+
+      if (nodeType === 'veth') {
+        const pairN = (counters.current['veth'] ?? 0) + 1;
+        counters.current['veth'] = pairN;
+        const pairId = `veth-pair-${pairN}`;
+        const aId = `veth-${pairN}a`;
+        const bId = `veth-${pairN}b`;
+        const parent = findContainerAt(canvasPos, nodes.filter((n) => n.type === 'containerNode'));
+        const makeVethNode = (id: string, label: string, dx: number) => {
+          const pos = parent
+            ? { x: canvasPos.x - parent.position.x + dx, y: canvasPos.y - parent.position.y }
+            : { x: canvasPos.x + dx, y: canvasPos.y };
+          return {
+            id, type: 'netNode' as const,
+            position: pos,
+            ...(parent ? { parentNode: parent.id } : {}),
+            data: { nodeType: 'veth-end', label, vethPairId: pairId },
+          };
+        };
+        setNodes((nds) => [...nds, makeVethNode(aId, `veth-${pairN}a`, -90), makeVethNode(bId, `veth-${pairN}b`, 90)]);
+        setEdges((eds) => [...eds, {
+          id: `veth-link-${pairId}`,
+          source: aId, sourceHandle: 'S-0-s',
+          target: bId, targetHandle: 'S-0-t',
+          data: { vethLink: true },
+          className: 'veth-link',
+          style: { stroke: '#0d9488', strokeWidth: 3, strokeDasharray: '6 3' },
+          label: '⛓',
+        }]);
+        return;
+      }
+
+      const def = REGISTRY.get(nodeType);
+      if (!def) return;
       const label = nextLabel(nodeType);
 
       if (def instanceof ContainerComponentDef) {
@@ -254,7 +290,7 @@ export default function App() {
         }]);
       }
     },
-    [nodes, rfInstance, setNodes]
+    [nodes, rfInstance, setNodes, setEdges]
   );
 
   const onNodeDrag = useCallback(
@@ -288,16 +324,18 @@ export default function App() {
 
   const deleteSelected = useCallback(() => {
     if (!selectedNode) return;
-    setNodes((nds) => {
-      const toDelete = new Set([selectedNode.id]);
-      if (selectedNode.type === 'containerNode') {
-        nds.forEach((n) => { if (n.parentNode === selectedNode.id) toDelete.add(n.id); });
-      }
-      return nds.filter((n) => !toDelete.has(n.id));
-    });
-    setEdges((eds) => eds.filter((e) => e.source !== selectedNode.id && e.target !== selectedNode.id));
+    const toDelete = new Set([selectedNode.id]);
+    if (selectedNode.type === 'containerNode') {
+      nodes.forEach((n) => { if (n.parentNode === selectedNode.id) toDelete.add(n.id); });
+    }
+    const pairId = selectedNode.data.vethPairId;
+    if (pairId) {
+      nodes.forEach((n) => { if (n.data.vethPairId === pairId) toDelete.add(n.id); });
+    }
+    setNodes((nds) => nds.filter((n) => !toDelete.has(n.id)));
+    setEdges((eds) => eds.filter((e) => !toDelete.has(e.source) && !toDelete.has(e.target)));
     setSelectedNode(null);
-  }, [selectedNode, setNodes, setEdges]);
+  }, [selectedNode, nodes, setNodes, setEdges]);
 
   const updateLabel = (label: string) => {
     if (!selectedNode) return;

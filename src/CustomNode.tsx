@@ -7,6 +7,8 @@ export interface NetNodeData {
   nodeType: string;
   label: string;
   config?: Record<string, string>;
+  /** Set on veth-end nodes to identify the paired partner. */
+  vethPairId?: string;
 }
 
 const HANDLE_SIZE = { width: 10, height: 10 };

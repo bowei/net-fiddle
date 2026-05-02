@@ -14,13 +14,18 @@ import { nftablesOutput } from '../components/nftablesOutput';
 import { nftablesPostrouting } from '../components/nftablesPostrouting';
 import { qdisc } from '../components/qdisc';
 import { socket } from '../components/socket';
+import { vethEnd } from '../components/vethEnd';
 
+// All ComponentDefs including registry-only ones (not in sidebar, e.g. veth-end).
 const ALL_DEFS = [
   namespace, netInterface, routingTable, trafficControl,
   xdpProgram, tcBpfProgram,
   nftablesPrerouting, nftablesInput, nftablesForward, nftablesOutput, nftablesPostrouting,
-  qdisc, socket,
+  qdisc, socket, vethEnd,
 ];
+
+// ComponentDefs that appear in the sidebar (registry-only types excluded).
+const SIDEBAR_DEFS = ALL_DEFS.filter((d) => d !== vethEnd);
 
 const CONTAINER_DEFS = ALL_DEFS.filter((d) => d instanceof ContainerComponentDef);
 const NODE_DEFS = ALL_DEFS.filter((d) => !(d instanceof ContainerComponentDef));
@@ -147,12 +152,12 @@ describe('REGISTRY', () => {
 });
 
 describe('SIDEBAR_ITEMS', () => {
-  it('lists every registered component exactly once', () => {
-    expect(SIDEBAR_ITEMS).toHaveLength(ALL_DEFS.length);
-    expect(new Set(SIDEBAR_ITEMS).size).toBe(ALL_DEFS.length);
+  it('lists every sidebar ComponentDef exactly once (excludes registry-only types)', () => {
+    expect(SIDEBAR_ITEMS).toHaveLength(SIDEBAR_DEFS.length);
+    expect(new Set(SIDEBAR_ITEMS).size).toBe(SIDEBAR_DEFS.length);
   });
 
-  it('matches REGISTRY entries', () => {
+  it('every sidebar item is in REGISTRY', () => {
     for (const def of SIDEBAR_ITEMS) expect(REGISTRY.get(def.type)).toBe(def);
   });
 });
@@ -165,9 +170,15 @@ describe('SIDEBAR_GROUPS', () => {
     }
   });
 
-  it('all items across groups are registered', () => {
+  it('ComponentDef items are in REGISTRY; SidebarTemplate items are not', () => {
     for (const group of SIDEBAR_GROUPS) {
-      for (const def of group.items) expect(REGISTRY.get(def.type)).toBe(def);
+      for (const item of group.items) {
+        if (item instanceof ComponentDef) {
+          expect(REGISTRY.get(item.type)).toBe(item);
+        } else {
+          expect(REGISTRY.get(item.type)).toBeUndefined();
+        }
+      }
     }
   });
 });
