@@ -19,7 +19,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 
 import CustomNode, { type NetNodeData } from './CustomNode';
-import { NODE_CONFIG, SIDEBAR_ITEMS, type NodeType } from './nodeConfig';
+import { REGISTRY, SIDEBAR_ITEMS } from './components/registry';
 import {
   Upload,
   Download,
@@ -78,14 +78,15 @@ export default function App() {
     setSelectedNode(null);
   }, []);
 
-  const nextLabel = (nodeType: NodeType) => {
-    const cfg = NODE_CONFIG[nodeType];
+  const nextLabel = (nodeType: string): string => {
+    const def = REGISTRY.get(nodeType);
+    const prefix = def?.typeLabel ?? nodeType;
     const count = (counters.current[nodeType] ?? 0) + 1;
     counters.current[nodeType] = count;
-    return `${cfg.typeLabel}-${count}`;
+    return `${prefix}-${count}`;
   };
 
-  const onDragStart = (event: DragEvent<HTMLDivElement>, nodeType: NodeType) => {
+  const onDragStart = (event: DragEvent<HTMLDivElement>, nodeType: string) => {
     event.dataTransfer.setData('application/netfiddle', nodeType);
     event.dataTransfer.effectAllowed = 'move';
   };
@@ -94,7 +95,7 @@ export default function App() {
     (event: DragEvent<HTMLDivElement>) => {
       event.preventDefault();
       setIsDragOver(false);
-      const nodeType = event.dataTransfer.getData('application/netfiddle') as NodeType;
+      const nodeType = event.dataTransfer.getData('application/netfiddle');
       if (!nodeType || !rfInstance || !wrapperRef.current) return;
 
       const bounds = wrapperRef.current.getBoundingClientRect();
@@ -104,9 +105,8 @@ export default function App() {
       });
 
       const label = nextLabel(nodeType);
-      const id = label;
       const newNode: Node<NetNodeData> = {
-        id,
+        id: label,
         type: 'netNode',
         position,
         data: { nodeType, label },
@@ -211,7 +211,7 @@ export default function App() {
     input.click();
   };
 
-  // Update selectedNode when nodes change (e.g. drag reposition)
+  // Keep selectedNode in sync when nodes move on the canvas.
   useEffect(() => {
     if (!selectedNode) return;
     const updated = nodes.find((n) => n.id === selectedNode.id);
@@ -231,7 +231,7 @@ export default function App() {
     return () => window.removeEventListener('keydown', handler);
   }, [deleteSelected]);
 
-  const selectedCfg = selectedNode ? NODE_CONFIG[selectedNode.data.nodeType] : null;
+  const selectedDef = selectedNode ? REGISTRY.get(selectedNode.data.nodeType) : null;
 
   return (
     <div className="app">
@@ -267,20 +267,19 @@ export default function App() {
         <aside className="sidebar">
           <div>
             <div className="sidebar-section-title">Network Components</div>
-            {SIDEBAR_ITEMS.map((nodeType) => {
-              const cfg = NODE_CONFIG[nodeType];
-              const { Icon } = cfg;
+            {SIDEBAR_ITEMS.map((def) => {
+              const Icon = def.icon;
               return (
                 <div
-                  key={nodeType}
+                  key={def.type}
                   className="component-item"
                   draggable
-                  onDragStart={(e) => onDragStart(e, nodeType)}
+                  onDragStart={(e) => onDragStart(e, def.type)}
                 >
                   <div className="component-icon">
-                    <Icon size={16} color={cfg.color} />
+                    <Icon size={16} color={def.color} />
                   </div>
-                  {cfg.label}
+                  {def.label}
                 </div>
               );
             })}
@@ -325,7 +324,7 @@ export default function App() {
         </div>
 
         {/* Properties Panel */}
-        {selectedNode && selectedCfg && (
+        {selectedNode && selectedDef && (
           <aside className="properties-panel">
             <div className="properties-header">
               <span className="properties-title">Properties</span>
@@ -349,11 +348,7 @@ export default function App() {
 
             <div className="prop-group">
               <span className="prop-label">Type</span>
-              <input
-                className="prop-input"
-                readOnly
-                value={selectedCfg.label}
-              />
+              <input className="prop-input" readOnly value={selectedDef.label} />
             </div>
 
             <div className="prop-group">
@@ -390,9 +385,9 @@ export default function App() {
             </div>
 
             <div className="config-section">
-              <div className="config-title">{selectedCfg.configTitle}</div>
+              <div className="config-title">{selectedDef.configTitle}</div>
               <ul className="config-items">
-                {selectedCfg.configItems.map((item) => (
+                {selectedDef.configItems.map((item) => (
                   <li key={item}>{item}</li>
                 ))}
               </ul>
