@@ -14,12 +14,16 @@ import ReactFlow, {
   useEdgesState,
   type Connection,
   type Node,
+  type XYPosition,
   type ReactFlowInstance,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
 import CustomNode, { type NetNodeData } from './CustomNode';
+import ContainerNode from './ContainerNode';
 import { REGISTRY, SIDEBAR_ITEMS } from './components/registry';
+import { ContainerComponentDef } from './components/base';
+import { DragContext } from './DragContext';
 import {
   Upload,
   Download,
@@ -28,25 +32,57 @@ import {
   FlaskConical,
 } from 'lucide-react';
 
-const nodeTypes = { netNode: CustomNode };
+const nodeTypes = {
+  netNode: CustomNode,
+  containerNode: ContainerNode,
+};
+
+// Returns the canvas-absolute position of a node, accounting for parent offset.
+// Container nodes are always top-level, so positionAbsolute is their actual position.
+function absolutePosition(node: Node): XYPosition {
+  return node.positionAbsolute ?? node.position;
+}
+
+// Finds the topmost container node whose bounding box contains the given canvas point.
+function findContainerAt(pos: XYPosition, containers: Node[]): Node | undefined {
+  return containers.find((c) => {
+    const w = c.width ?? (c.style?.width as number) ?? 300;
+    const h = c.height ?? (c.style?.height as number) ?? 200;
+    return (
+      pos.x >= c.position.x &&
+      pos.x <= c.position.x + w &&
+      pos.y >= c.position.y &&
+      pos.y <= c.position.y + h
+    );
+  });
+}
 
 const SAMPLE_NODES: Node<NetNodeData>[] = [
   {
+    id: 'ns-1',
+    type: 'containerNode',
+    position: { x: 40, y: 40 },
+    style: { width: 320, height: 240 },
+    zIndex: -1,
+    data: { nodeType: 'namespace', label: 'ns-1' },
+  },
+  {
     id: 'interface-1',
     type: 'netNode',
-    position: { x: 96, y: 160 },
+    parentNode: 'ns-1',
+    position: { x: 80, y: 80 },
     data: { nodeType: 'interface', label: 'interface-1' },
   },
   {
     id: 'nftables-2',
     type: 'netNode',
-    position: { x: 300, y: 80 },
+    position: { x: 430, y: 80 },
     data: { nodeType: 'nftables', label: 'nftables-2' },
   },
   {
     id: 'tc-3',
     type: 'netNode',
-    position: { x: 310, y: 200 },
+    position: { x: 430, y: 200 },
     data: { nodeType: 'traffic-control', label: 'tc-3' },
   },
 ];
@@ -62,6 +98,7 @@ export default function App() {
   const [selectedNode, setSelectedNode] = useState<Node<NetNodeData> | null>(null);
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [hoverContainerId, setHoverContainerId] = useState<string | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const counters = useRef<Record<string, number>>({});
 
@@ -86,51 +123,150 @@ export default function App() {
     return `${prefix}-${count}`;
   };
 
+  // --- Sidebar drag-drop onto canvas ---
+
   const onDragStart = (event: DragEvent<HTMLDivElement>, nodeType: string) => {
     event.dataTransfer.setData('application/netfiddle', nodeType);
     event.dataTransfer.effectAllowed = 'move';
   };
 
+  const onDragOver = useCallback(
+    (event: DragEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'move';
+      setIsDragOver(true);
+      if (!rfInstance || !wrapperRef.current) return;
+      const bounds = wrapperRef.current.getBoundingClientRect();
+      const pos = rfInstance.project({
+        x: event.clientX - bounds.left,
+        y: event.clientY - bounds.top,
+      });
+      const found = findContainerAt(pos, nodes.filter((n) => n.type === 'containerNode'));
+      setHoverContainerId(found?.id ?? null);
+    },
+    [nodes, rfInstance]
+  );
+
+  const onDragLeave = useCallback(() => {
+    setIsDragOver(false);
+    setHoverContainerId(null);
+  }, []);
+
   const onDrop = useCallback(
     (event: DragEvent<HTMLDivElement>) => {
       event.preventDefault();
       setIsDragOver(false);
+      setHoverContainerId(null);
       const nodeType = event.dataTransfer.getData('application/netfiddle');
       if (!nodeType || !rfInstance || !wrapperRef.current) return;
 
+      const def = REGISTRY.get(nodeType);
+      if (!def) return;
+
       const bounds = wrapperRef.current.getBoundingClientRect();
-      const position = rfInstance.project({
+      const canvasPos = rfInstance.project({
         x: event.clientX - bounds.left,
         y: event.clientY - bounds.top,
       });
 
       const label = nextLabel(nodeType);
-      const newNode: Node<NetNodeData> = {
-        id: label,
-        type: 'netNode',
-        position,
-        data: { nodeType, label },
-      };
-      setNodes((nds) => [...nds, newNode]);
+
+      if (def instanceof ContainerComponentDef) {
+        const newNode: Node<NetNodeData> = {
+          id: label,
+          type: 'containerNode',
+          position: canvasPos,
+          style: { width: def.defaultWidth, height: def.defaultHeight },
+          zIndex: -1,
+          data: { nodeType, label },
+        };
+        setNodes((nds) => [...nds, newNode]);
+      } else {
+        const containers = nodes.filter((n) => n.type === 'containerNode');
+        const parent = findContainerAt(canvasPos, containers);
+        const newNode: Node<NetNodeData> = {
+          id: label,
+          type: 'netNode',
+          position: parent
+            ? { x: canvasPos.x - parent.position.x, y: canvasPos.y - parent.position.y }
+            : canvasPos,
+          ...(parent ? { parentNode: parent.id } : {}),
+          data: { nodeType, label },
+        };
+        setNodes((nds) => [...nds, newNode]);
+      }
     },
-    [rfInstance, setNodes]
+    [nodes, rfInstance, setNodes]
   );
 
-  const onDragOver = useCallback((event: DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    event.dataTransfer.dropEffect = 'move';
-    setIsDragOver(true);
-  }, []);
+  // --- Canvas node drag (for drop-target highlight feedback) ---
 
-  const onDragLeave = useCallback(() => setIsDragOver(false), []);
+  const onNodeDrag = useCallback(
+    (_: React.MouseEvent, draggedNode: Node<NetNodeData>) => {
+      if (draggedNode.type === 'containerNode') {
+        setHoverContainerId(null);
+        return;
+      }
+      const absPos = absolutePosition(draggedNode);
+      const found = findContainerAt(
+        absPos,
+        nodes.filter((n) => n.type === 'containerNode' && n.id !== draggedNode.parentNode)
+      );
+      setHoverContainerId(found?.id ?? null);
+    },
+    [nodes]
+  );
+
+  // Reparent a node after it has been dropped:
+  // - If it landed inside a container it wasn't already in → assign parentNode
+  // - If it was a child and landed outside all containers → remove parentNode
+  const onNodeDragStop = useCallback(
+    (_: React.MouseEvent, draggedNode: Node<NetNodeData>) => {
+      setHoverContainerId(null);
+      if (draggedNode.type === 'containerNode') return;
+
+      const absPos = absolutePosition(draggedNode);
+      const containers = nodes.filter((n) => n.type === 'containerNode');
+      const newParent = findContainerAt(absPos, containers);
+      const oldParentId = draggedNode.parentNode;
+
+      if (newParent?.id === oldParentId) return; // no change
+
+      setNodes((nds) =>
+        nds.map((n) => {
+          if (n.id !== draggedNode.id) return n;
+          if (newParent) {
+            return {
+              ...n,
+              parentNode: newParent.id,
+              position: {
+                x: absPos.x - newParent.position.x,
+                y: absPos.y - newParent.position.y,
+              },
+            };
+          }
+          // leaving a container — restore absolute position, drop parentNode
+          return { ...n, parentNode: undefined, position: absPos };
+        })
+      );
+    },
+    [nodes, setNodes]
+  );
+
+  // --- CRUD actions ---
 
   const deleteSelected = useCallback(() => {
     if (!selectedNode) return;
-    setNodes((nds) => nds.filter((n) => n.id !== selectedNode.id));
+    setNodes((nds) => {
+      const toDelete = new Set([selectedNode.id]);
+      // Delete children when a container is removed
+      if (selectedNode.type === 'containerNode') {
+        nds.forEach((n) => { if (n.parentNode === selectedNode.id) toDelete.add(n.id); });
+      }
+      return nds.filter((n) => !toDelete.has(n.id));
+    });
     setEdges((eds) =>
-      eds.filter(
-        (e) => e.source !== selectedNode.id && e.target !== selectedNode.id
-      )
+      eds.filter((e) => e.source !== selectedNode.id && e.target !== selectedNode.id)
     );
     setSelectedNode(null);
   }, [selectedNode, setNodes, setEdges]);
@@ -138,13 +274,9 @@ export default function App() {
   const updateLabel = (label: string) => {
     if (!selectedNode) return;
     setNodes((nds) =>
-      nds.map((n) =>
-        n.id === selectedNode.id ? { ...n, data: { ...n.data, label } } : n
-      )
+      nds.map((n) => (n.id === selectedNode.id ? { ...n, data: { ...n.data, label } } : n))
     );
-    setSelectedNode((prev) =>
-      prev ? { ...prev, data: { ...prev.data, label } } : null
-    );
+    setSelectedNode((prev) => (prev ? { ...prev, data: { ...prev.data, label } } : null));
   };
 
   const updatePosition = (axis: 'x' | 'y', value: number) => {
@@ -157,14 +289,12 @@ export default function App() {
       )
     );
     setSelectedNode((prev) =>
-      prev
-        ? { ...prev, position: { ...prev.position, [axis]: value } }
-        : null
+      prev ? { ...prev, position: { ...prev.position, [axis]: value } } : null
     );
   };
 
   const loadSample = () => {
-    counters.current = { interface: 1, nftables: 2, 'traffic-control': 3 };
+    counters.current = { namespace: 1, interface: 1, nftables: 2, 'traffic-control': 3 };
     setNodes(SAMPLE_NODES);
     setEdges(SAMPLE_EDGES);
     setSelectedNode(null);
@@ -232,6 +362,7 @@ export default function App() {
   }, [deleteSelected]);
 
   const selectedDef = selectedNode ? REGISTRY.get(selectedNode.data.nodeType) : null;
+  const selectedIsContainer = selectedDef instanceof ContainerComponentDef;
 
   return (
     <div className="app">
@@ -291,6 +422,7 @@ export default function App() {
               <li>Drag components to canvas</li>
               <li>Click to select and edit</li>
               <li>Drag nodes to reposition</li>
+              <li>Drop onto namespace to nest</li>
               <li>Drag handle to connect</li>
               <li>Del to delete selected</li>
             </ul>
@@ -305,22 +437,26 @@ export default function App() {
           onDragOver={onDragOver}
           onDragLeave={onDragLeave}
         >
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            onNodeClick={onNodeClick}
-            onPaneClick={onPaneClick}
-            onInit={setRfInstance}
-            nodeTypes={nodeTypes}
-            fitView={nodes.length > 0}
-            deleteKeyCode={null}
-          >
-            <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#e2e8f0" />
-            <Controls />
-          </ReactFlow>
+          <DragContext.Provider value={hoverContainerId}>
+            <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onConnect={onConnect}
+              onNodeClick={onNodeClick}
+              onPaneClick={onPaneClick}
+              onNodeDrag={onNodeDrag}
+              onNodeDragStop={onNodeDragStop}
+              onInit={setRfInstance}
+              nodeTypes={nodeTypes}
+              fitView={nodes.length > 0}
+              deleteKeyCode={null}
+            >
+              <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#e2e8f0" />
+              <Controls />
+            </ReactFlow>
+          </DragContext.Provider>
         </div>
 
         {/* Properties Panel */}
@@ -329,18 +465,10 @@ export default function App() {
             <div className="properties-header">
               <span className="properties-title">Properties</span>
               <div className="properties-header-actions">
-                <button
-                  className="icon-btn danger"
-                  title="Delete"
-                  onClick={deleteSelected}
-                >
+                <button className="icon-btn danger" title="Delete" onClick={deleteSelected}>
                   <Trash2 size={15} />
                 </button>
-                <button
-                  className="icon-btn"
-                  title="Close"
-                  onClick={() => setSelectedNode(null)}
-                >
+                <button className="icon-btn" title="Close" onClick={() => setSelectedNode(null)}>
                   <X size={15} />
                 </button>
               </div>
@@ -360,29 +488,61 @@ export default function App() {
               />
             </div>
 
-            <div className="prop-group">
-              <span className="prop-label">Position</span>
-              <div className="position-row">
-                <div className="position-field">
-                  <label>X</label>
-                  <input
-                    className="prop-input"
-                    type="number"
-                    value={Math.round(selectedNode.position.x)}
-                    onChange={(e) => updatePosition('x', Number(e.target.value))}
-                  />
-                </div>
-                <div className="position-field">
-                  <label>Y</label>
-                  <input
-                    className="prop-input"
-                    type="number"
-                    value={Math.round(selectedNode.position.y)}
-                    onChange={(e) => updatePosition('y', Number(e.target.value))}
-                  />
+            {!selectedIsContainer && (
+              <div className="prop-group">
+                <span className="prop-label">Position</span>
+                <div className="position-row">
+                  <div className="position-field">
+                    <label>X</label>
+                    <input
+                      className="prop-input"
+                      type="number"
+                      value={Math.round(selectedNode.position.x)}
+                      onChange={(e) => updatePosition('x', Number(e.target.value))}
+                    />
+                  </div>
+                  <div className="position-field">
+                    <label>Y</label>
+                    <input
+                      className="prop-input"
+                      type="number"
+                      value={Math.round(selectedNode.position.y)}
+                      onChange={(e) => updatePosition('y', Number(e.target.value))}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
+
+            {selectedIsContainer && (
+              <div className="prop-group">
+                <span className="prop-label">Size</span>
+                <div className="position-row">
+                  <div className="position-field">
+                    <label>W</label>
+                    <input
+                      className="prop-input"
+                      type="number"
+                      readOnly
+                      value={Math.round(
+                        (selectedNode.width ?? (selectedNode.style?.width as number) ?? 0)
+                      )}
+                    />
+                  </div>
+                  <div className="position-field">
+                    <label>H</label>
+                    <input
+                      className="prop-input"
+                      type="number"
+                      readOnly
+                      value={Math.round(
+                        (selectedNode.height ?? (selectedNode.style?.height as number) ?? 0)
+                      )}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="config-section">
               <div className="config-title">{selectedDef.configTitle}</div>
@@ -405,7 +565,7 @@ export default function App() {
           </div>
           <div className="shortcut">
             <span className="kbd">Drag</span>
-            handle to connect nodes
+            onto namespace to nest
           </div>
           <div className="shortcut">
             <span className="kbd">Esc</span>

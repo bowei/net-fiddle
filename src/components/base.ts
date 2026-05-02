@@ -3,6 +3,9 @@ import type { LucideIcon } from 'lucide-react';
 /**
  * Defines a draggable network component type.
  * Extend this class and register the instance in registry.ts to add a new type.
+ *
+ * For components that act as resizable containers for other nodes,
+ * extend ContainerComponentDef instead.
  */
 export abstract class ComponentDef {
   /** Unique identifier used as the node's data.nodeType field. */
@@ -23,4 +26,21 @@ export abstract class ComponentDef {
   abstract readonly configTitle: string;
   /** Bullet-point descriptions in the Properties panel config block. */
   abstract readonly configItems: readonly string[];
+}
+
+/**
+ * Defines a component type that acts as a resizable container on the canvas.
+ * Child nodes placed inside it move with it and are positioned relative to it.
+ * Extend this class when adding a new container type.
+ */
+export abstract class ContainerComponentDef extends ComponentDef {
+  readonly isContainer = true as const;
+  /** Initial width in canvas pixels when the node is first dropped. */
+  abstract readonly defaultWidth: number;
+  /** Initial height in canvas pixels when the node is first dropped. */
+  abstract readonly defaultHeight: number;
+  /** Minimum width enforced by the resize handle. */
+  abstract readonly minWidth: number;
+  /** Minimum height enforced by the resize handle. */
+  abstract readonly minHeight: number;
 }

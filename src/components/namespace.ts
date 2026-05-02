@@ -1,7 +1,7 @@
 import { Globe2 } from 'lucide-react';
-import { ComponentDef } from './base';
+import { ContainerComponentDef } from './base';
 
-export class NamespaceComponent extends ComponentDef {
+export class NamespaceComponent extends ContainerComponentDef {
   readonly type = 'namespace';
   readonly label = 'Namespace';
   readonly typeLabel = 'namespace';
@@ -15,6 +15,10 @@ export class NamespaceComponent extends ComponentDef {
     'Separate routing table',
     'Independent interfaces',
   ] as const;
+  readonly defaultWidth = 320;
+  readonly defaultHeight = 240;
+  readonly minWidth = 160;
+  readonly minHeight = 120;
 }
 
 export const namespace = new NamespaceComponent();
