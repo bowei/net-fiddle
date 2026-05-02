@@ -14,8 +14,8 @@ export class XdpProgramComponent extends BpfBase {
   ] as const;
   // XDP is strictly ingress-only; it runs before TC and before skb creation.
   readonly anchors = [
-    { side: 'N', count: 1, flow: 'ingress' as const },
-    { side: 'S', count: 1, flow: 'ingress' as const },
+    { side: 'N', count: 1, flow: 'ingress' as const, connector: 'in' as const },
+    { side: 'S', count: 1, flow: 'ingress' as const, connector: 'out' as const },
   ] as const;
 }
 

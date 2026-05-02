@@ -6,6 +6,9 @@ export type CardinalSide = 'N' | 'E' | 'S' | 'W';
 /** Direction of packet flow through an anchor point. */
 export type AnchorFlow = 'ingress' | 'egress' | 'any';
 
+/** Whether an anchor accepts incoming connections, outgoing connections, or both. */
+export type AnchorConnector = 'in' | 'out' | 'both';
+
 /**
  * Declares one group of anchor points on a single side of the component box.
  * Handles are distributed evenly along that side: for `count` handles,
@@ -22,6 +25,8 @@ export interface AnchorSpec {
   count: number;
   /** Packet flow direction this anchor carries. Used for visual color-coding and mismatch warnings. */
   flow: AnchorFlow;
+  /** Whether this anchor is an input port, output port, or bidirectional. Defaults to 'both'. */
+  connector?: AnchorConnector;
 }
 
 /**

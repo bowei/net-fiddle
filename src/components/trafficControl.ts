@@ -29,8 +29,8 @@ export class TrafficControlComponent extends ComponentDef {
   getAnchors(config: Record<string, string>): readonly AnchorSpec[] {
     const flow = config.direction === 'egress' ? 'egress' : 'ingress';
     return [
-      { side: 'N', count: 1, flow },
-      { side: 'S', count: 1, flow },
+      { side: 'N', count: 1, flow, connector: 'in' as const },
+      { side: 'S', count: 1, flow, connector: 'out' as const },
     ];
   }
 }

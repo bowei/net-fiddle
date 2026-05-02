@@ -10,8 +10,8 @@ export class NftablesPreroutingComponent extends NftablesBase {
     'First netfilter hook on ingress',
   ] as const;
   readonly anchors = [
-    { side: 'N', count: 1, flow: 'ingress' as const },
-    { side: 'S', count: 1, flow: 'ingress' as const },
+    { side: 'N', count: 1, flow: 'ingress' as const, connector: 'in' as const },
+    { side: 'S', count: 1, flow: 'ingress' as const, connector: 'out' as const },
   ] as const;
 }
 

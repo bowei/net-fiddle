@@ -12,8 +12,8 @@ export class NftablesForwardComponent extends NftablesBase {
   // Forward sits between ingress and egress paths; 'any' because it processes
   // packets that entered as ingress and leave as egress.
   readonly anchors = [
-    { side: 'N', count: 1, flow: 'any' as const },
-    { side: 'S', count: 1, flow: 'any' as const },
+    { side: 'N', count: 1, flow: 'any' as const, connector: 'in' as const },
+    { side: 'S', count: 1, flow: 'any' as const, connector: 'out' as const },
   ] as const;
 }
 

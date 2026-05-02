@@ -19,9 +19,9 @@ export class NetInterfaceComponent extends ComponentDef {
   // W: ingress path exits left toward XDP → TC-rx → nftables prerouting.
   // E: egress path enters right from TC-tx → qdisc.
   readonly anchors = [
-    { side: 'S', count: 1, flow: 'any' as const },
-    { side: 'W', count: 1, flow: 'ingress' as const },
-    { side: 'E', count: 1, flow: 'egress' as const },
+    { side: 'S', count: 1, flow: 'any' as const,     connector: 'both' as const },
+    { side: 'W', count: 1, flow: 'ingress' as const, connector: 'out' as const },
+    { side: 'E', count: 1, flow: 'egress' as const,  connector: 'in' as const },
   ] as const;
 }
 

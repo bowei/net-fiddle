@@ -60,6 +60,15 @@ describe('ComponentDef subclasses', () => {
       expect(['ingress', 'egress', 'any']).toContain(flow);
     }
   });
+
+  it.each(ALL_DEFS)('$type connector fields are valid when specified', (def) => {
+    const anchors = def.getAnchors({});
+    for (const { connector } of anchors) {
+      if (connector !== undefined) {
+        expect(['in', 'out', 'both']).toContain(connector);
+      }
+    }
+  });
 });
 
 describe('ContainerComponentDef', () => {

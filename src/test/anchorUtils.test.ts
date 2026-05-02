@@ -113,6 +113,22 @@ describe('resolveHandles', () => {
     expect(resolveHandles([])).toEqual([]);
   });
 
+  it('connector is passed through to resolved handles', () => {
+    const specs: AnchorSpec[] = [
+      { side: 'N', count: 1, flow: 'ingress', connector: 'in' },
+      { side: 'S', count: 1, flow: 'egress',  connector: 'out' },
+    ];
+    const [n, s] = resolveHandles(specs);
+    expect(n.connector).toBe('in');
+    expect(s.connector).toBe('out');
+  });
+
+  it('connector defaults to both when omitted', () => {
+    const specs: AnchorSpec[] = [{ side: 'N', count: 1, flow: 'any' }];
+    const [h] = resolveHandles(specs);
+    expect(h.connector).toBe('both');
+  });
+
   it('handle IDs are unique across all sides', () => {
     const specs: AnchorSpec[] = [
       { side: 'N', count: 2, flow: 'ingress' },

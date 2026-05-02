@@ -1,6 +1,6 @@
 import { Position } from 'reactflow';
 import type { CSSProperties } from 'react';
-import type { CardinalSide, AnchorFlow, AnchorSpec } from './components/base';
+import type { CardinalSide, AnchorFlow, AnchorConnector, AnchorSpec } from './components/base';
 
 const SIDE_TO_RF_POSITION: Record<CardinalSide, Position> = {
   N: Position.Top,
@@ -55,6 +55,7 @@ export interface ResolvedHandle {
   id: string;
   side: CardinalSide;
   flow: AnchorFlow;
+  connector: AnchorConnector;
   globalIndex: number;
   totalOnSide: number;
 }
@@ -65,18 +66,18 @@ export interface ResolvedHandle {
  */
 export function resolveHandles(anchors: readonly AnchorSpec[]): ResolvedHandle[] {
   // Collect all handles per side in declaration order.
-  const bySide = new Map<CardinalSide, Array<{ flow: AnchorFlow }>>();
-  for (const { side, count, flow } of anchors) {
+  const bySide = new Map<CardinalSide, Array<{ flow: AnchorFlow; connector: AnchorConnector }>>();
+  for (const { side, count, flow, connector = 'both' } of anchors) {
     if (!bySide.has(side)) bySide.set(side, []);
     const arr = bySide.get(side)!;
-    for (let i = 0; i < count; i++) arr.push({ flow });
+    for (let i = 0; i < count; i++) arr.push({ flow, connector });
   }
 
   const result: ResolvedHandle[] = [];
   for (const [side, handles] of bySide) {
     const total = handles.length;
-    handles.forEach(({ flow }, globalIndex) => {
-      result.push({ id: anchorHandleId(side, globalIndex), side, flow, globalIndex, totalOnSide: total });
+    handles.forEach(({ flow, connector }, globalIndex) => {
+      result.push({ id: anchorHandleId(side, globalIndex), side, flow, connector, globalIndex, totalOnSide: total });
     });
   }
   return result;

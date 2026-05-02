@@ -10,8 +10,8 @@ export class NftablesPostroutingComponent extends NftablesBase {
     'Last netfilter hook before qdisc',
   ] as const;
   readonly anchors = [
-    { side: 'N', count: 1, flow: 'egress' as const },
-    { side: 'S', count: 1, flow: 'egress' as const },
+    { side: 'N', count: 1, flow: 'egress' as const, connector: 'in' as const },
+    { side: 'S', count: 1, flow: 'egress' as const, connector: 'out' as const },
   ] as const;
 }
 

@@ -25,8 +25,8 @@ export class QdiscComponent extends ComponentDef {
   ] as const;
   // Qdisc is strictly on the egress path between TC egress and the NIC driver.
   readonly anchors = [
-    { side: 'N', count: 1, flow: 'egress' as const },
-    { side: 'S', count: 1, flow: 'egress' as const },
+    { side: 'N', count: 1, flow: 'egress' as const, connector: 'in' as const },
+    { side: 'S', count: 1, flow: 'egress' as const, connector: 'out' as const },
   ] as const;
 }
 

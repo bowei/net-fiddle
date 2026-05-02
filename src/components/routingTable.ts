@@ -20,8 +20,8 @@ export class RoutingTableComponent extends ComponentDef {
   // N: arrives from nftables prerouting (ingress) or local socket (egress).
   // S: two outputs — local delivery and forwarding/egress output.
   readonly anchors = [
-    { side: 'N', count: 1, flow: 'any' as const },
-    { side: 'S', count: 2, flow: 'any' as const },
+    { side: 'N', count: 1, flow: 'any' as const, connector: 'in' as const },
+    { side: 'S', count: 2, flow: 'any' as const, connector: 'out' as const },
   ] as const;
 }
 
