@@ -7,12 +7,14 @@ import {
 } from 'react';
 import ReactFlow, {
   addEdge,
+  updateEdge,
   Background,
   BackgroundVariant,
   Controls,
   useNodesState,
   useEdgesState,
   type Connection,
+  type Edge,
   type Node,
   type XYPosition,
   type ReactFlowInstance,
@@ -101,9 +103,34 @@ export default function App() {
   const [hoverContainerId, setHoverContainerId] = useState<string | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const counters = useRef<Record<string, number>>({});
+  const edgeReconnectSuccessful = useRef(true);
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
+    [setEdges]
+  );
+
+  // Mark drag as not yet resolved; onEdgeUpdate will flip this to true on success.
+  const onEdgeReconnectStart = useCallback(() => {
+    edgeReconnectSuccessful.current = false;
+  }, []);
+
+  const onEdgeReconnect = useCallback(
+    (oldEdge: Edge, newConnection: Connection) => {
+      edgeReconnectSuccessful.current = true;
+      setEdges((eds) => updateEdge(oldEdge, newConnection, eds));
+    },
+    [setEdges]
+  );
+
+  // Drop without landing on a handle → delete the edge.
+  const onEdgeReconnectEnd = useCallback(
+    (_: MouseEvent | TouchEvent, edge: Edge) => {
+      if (!edgeReconnectSuccessful.current) {
+        setEdges((eds) => eds.filter((e) => e.id !== edge.id));
+      }
+      edgeReconnectSuccessful.current = true;
+    },
     [setEdges]
   );
 
@@ -444,6 +471,9 @@ export default function App() {
               onNodesChange={onNodesChange}
               onEdgesChange={onEdgesChange}
               onConnect={onConnect}
+              onEdgeUpdateStart={onEdgeReconnectStart}
+              onEdgeUpdate={onEdgeReconnect}
+              onEdgeUpdateEnd={onEdgeReconnectEnd}
               onNodeClick={onNodeClick}
               onPaneClick={onPaneClick}
               onNodeDrag={onNodeDrag}
