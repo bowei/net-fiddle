@@ -12,6 +12,7 @@ import ReactFlow, {
   Background,
   BackgroundVariant,
   Controls,
+  MarkerType,
   useNodesState,
   useEdgesState,
   type Connection,
@@ -25,7 +26,7 @@ import 'reactflow/dist/style.css';
 import CustomNode, { type NetNodeData } from './CustomNode';
 import ContainerNode from './ContainerNode';
 import { REGISTRY, SIDEBAR_GROUPS } from './components/registry';
-import { ContainerComponentDef } from './components/base';
+import { ContainerComponentDef, type AnchorFlow } from './components/base';
 import { resolveHandles } from './anchorUtils';
 import { DragContext } from './DragContext';
 import {
@@ -54,32 +55,41 @@ function findContainerAt(pos: XYPosition, containers: Node[]): Node | undefined 
   });
 }
 
-/**
- * Checks whether the two handles connected by an edge carry compatible flow
- * directions. Returns 'mismatch' only when both sides declare a concrete
- * direction (ingress or egress) and they differ.
- */
-function edgeFlowCompatible(edge: Edge, nodes: Node<NetNodeData>[]): boolean {
-  if (!edge.sourceHandle || !edge.targetHandle) return true;
+/** Resolves the flow types of both handles on an edge. Returns null if either is unresolvable. */
+function resolveEdgeHandleFlows(
+  edge: Edge,
+  nodes: Node<NetNodeData>[]
+): { src: AnchorFlow; tgt: AnchorFlow } | null {
+  if (!edge.sourceHandle || !edge.targetHandle) return null;
   const src = nodes.find((n) => n.id === edge.source);
   const tgt = nodes.find((n) => n.id === edge.target);
-  if (!src || !tgt) return true;
+  if (!src || !tgt) return null;
   const srcDef = REGISTRY.get(src.data.nodeType);
   const tgtDef = REGISTRY.get(tgt.data.nodeType);
-  if (!srcDef || !tgtDef) return true;
-
+  if (!srcDef || !tgtDef) return null;
   // Strip the '-s'/'-t' suffix added by CustomNode to get the base handle id.
   const srcHandleId = edge.sourceHandle.replace(/-[st]$/, '');
   const tgtHandleId = edge.targetHandle.replace(/-[st]$/, '');
+  const srcHandle = resolveHandles(srcDef.getAnchors(src.data.config ?? {})).find((h) => h.id === srcHandleId);
+  const tgtHandle = resolveHandles(tgtDef.getAnchors(tgt.data.config ?? {})).find((h) => h.id === tgtHandleId);
+  if (!srcHandle || !tgtHandle) return null;
+  return { src: srcHandle.flow, tgt: tgtHandle.flow };
+}
 
-  const srcHandle = resolveHandles(srcDef.getAnchors(src.data.config ?? {}))
-    .find((h) => h.id === srcHandleId);
-  const tgtHandle = resolveHandles(tgtDef.getAnchors(tgt.data.config ?? {}))
-    .find((h) => h.id === tgtHandleId);
+function edgeFlowCompatible(edge: Edge, nodes: Node<NetNodeData>[]): boolean {
+  const flows = resolveEdgeHandleFlows(edge, nodes);
+  if (!flows) return true;
+  if (flows.src === 'any' || flows.tgt === 'any') return true;
+  return flows.src === flows.tgt;
+}
 
-  if (!srcHandle || !tgtHandle) return true;
-  if (srcHandle.flow === 'any' || tgtHandle.flow === 'any') return true;
-  return srcHandle.flow === tgtHandle.flow;
+/** Returns the dominant flow type of an edge for coloring/arrow purposes. */
+function edgeFlowType(edge: Edge, nodes: Node<NetNodeData>[]): AnchorFlow {
+  const flows = resolveEdgeHandleFlows(edge, nodes);
+  if (!flows) return 'any';
+  if (flows.src !== 'any') return flows.src;
+  if (flows.tgt !== 'any') return flows.tgt;
+  return 'any';
 }
 
 const SAMPLE_NODES: Node<NetNodeData>[] = [
@@ -146,14 +156,29 @@ export default function App() {
   const counters = useRef<Record<string, number>>({});
   const edgeReconnectSuccessful = useRef(true);
 
-  // Derive edges with mismatch styling; avoids touching the edges state on every render.
+  // Derive edges with flow-colored strokes, directional arrowheads, and mismatch warnings.
   const styledEdges = useMemo(
     () =>
       edges.map((e) => {
         if (e.data?.vethLink) return e;
-        return edgeFlowCompatible(e, nodes)
-          ? e
-          : { ...e, style: { ...e.style, stroke: '#ef4444', strokeWidth: 2 }, label: '⚠' };
+        const compatible = edgeFlowCompatible(e, nodes);
+        const flow = edgeFlowType(e, nodes);
+        const color = !compatible
+          ? '#ef4444'
+          : flow === 'ingress'
+          ? '#3b82f6'
+          : flow === 'egress'
+          ? '#f59e0b'
+          : undefined;
+        const marker = color
+          ? { type: MarkerType.ArrowClosed, color, width: 16, height: 16 }
+          : undefined;
+        return {
+          ...e,
+          style: color ? { ...e.style, stroke: color, strokeWidth: compatible ? 1.5 : 2 } : e.style,
+          markerEnd: marker,
+          label: !compatible ? '⚠' : e.label,
+        };
       }),
     [edges, nodes]
   );
