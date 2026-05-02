@@ -1,5 +1,21 @@
 import type { LucideIcon } from 'lucide-react';
 
+/** One of the four cardinal sides of a component box. */
+export type CardinalSide = 'N' | 'E' | 'S' | 'W';
+
+/**
+ * Declares one group of anchor points on a single side of the component box.
+ * Handles are distributed evenly along that side: for `count` handles,
+ * handle i sits at position (i+1)/(count+1) of the side length.
+ *
+ * NOTE: changing `anchors` on a type is a breaking change for saved topologies,
+ * because React Flow edge records store the handle IDs derived from side+index.
+ */
+export interface AnchorSpec {
+  side: CardinalSide;
+  count: number;
+}
+
 /**
  * Defines a draggable network component type.
  * Extend this class and register the instance in registry.ts to add a new type.
@@ -26,6 +42,12 @@ export abstract class ComponentDef {
   abstract readonly configTitle: string;
   /** Bullet-point descriptions in the Properties panel config block. */
   abstract readonly configItems: readonly string[];
+  /**
+   * Connection anchor points for this component type.
+   * Each entry places `count` handles evenly distributed along the named side.
+   * Use an empty array for types that should not be connectable.
+   */
+  abstract readonly anchors: readonly AnchorSpec[];
 }
 
 /**

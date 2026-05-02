@@ -15,6 +15,8 @@ export class NamespaceComponent extends ContainerComponentDef {
     'Separate routing table',
     'Independent interfaces',
   ] as const;
+  // Containers are connected by nesting, not by edges.
+  readonly anchors = [] as const;
   readonly defaultWidth = 320;
   readonly defaultHeight = 240;
   readonly minWidth = 160;

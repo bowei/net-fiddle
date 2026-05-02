@@ -15,6 +15,11 @@ export class NftablesComponent extends ComponentDef {
     'NAT configuration',
     'Packet filtering',
   ] as const;
+  // Packets enter from the top, exit from the bottom.
+  readonly anchors = [
+    { side: 'N', count: 1 },
+    { side: 'S', count: 1 },
+  ] as const;
 }
 
 export const nftables = new NftablesComponent();

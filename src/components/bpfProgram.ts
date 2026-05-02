@@ -15,6 +15,11 @@ export class BpfProgramComponent extends ComponentDef {
     'TC BPF hooks',
     'Socket filters',
   ] as const;
+  // Attaches to an interface on one side, hooks into the stack on the other.
+  readonly anchors = [
+    { side: 'N', count: 1 },
+    { side: 'S', count: 1 },
+  ] as const;
 }
 
 export const bpfProgram = new BpfProgramComponent();

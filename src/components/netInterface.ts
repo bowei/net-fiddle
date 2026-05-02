@@ -15,6 +15,13 @@ export class NetInterfaceComponent extends ComponentDef {
     'veth pairs, bridges, etc.',
     'MTU, MAC address settings',
   ] as const;
+  // Interfaces connect to many things; expose a port on every side.
+  readonly anchors = [
+    { side: 'N', count: 1 },
+    { side: 'E', count: 1 },
+    { side: 'S', count: 1 },
+    { side: 'W', count: 1 },
+  ] as const;
 }
 
 export const netInterface = new NetInterfaceComponent();

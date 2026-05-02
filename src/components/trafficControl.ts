@@ -15,6 +15,11 @@ export class TrafficControlComponent extends ComponentDef {
     'Queue disciplines',
     'Packet scheduling',
   ] as const;
+  // Single ingress, single egress.
+  readonly anchors = [
+    { side: 'N', count: 1 },
+    { side: 'S', count: 1 },
+  ] as const;
 }
 
 export const trafficControl = new TrafficControlComponent();

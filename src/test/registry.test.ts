@@ -35,6 +35,14 @@ describe('ComponentDef subclasses', () => {
       expect(def).toBeInstanceOf(ComponentDef);
     }
   });
+
+  it.each(ALL_DEFS)('$type has a valid anchors array', (def) => {
+    expect(Array.isArray(def.anchors)).toBe(true);
+    for (const { side, count } of def.anchors) {
+      expect(['N', 'E', 'S', 'W']).toContain(side);
+      expect(count).toBeGreaterThan(0);
+    }
+  });
 });
 
 describe('ContainerComponentDef', () => {
