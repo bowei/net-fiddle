@@ -147,11 +147,9 @@ describe('nftables hooks', () => {
 });
 
 describe('interface anchors', () => {
-  it('has a wire anchor (any), an ingress anchor (W), and an egress anchor (E)', () => {
-    const wire = netInterface.anchors.find((a) => a.flow === 'any');
-    const rx = netInterface.anchors.find((a) => a.flow === 'ingress');
-    const tx = netInterface.anchors.find((a) => a.flow === 'egress');
-    expect(wire).toBeDefined();
+  it('has an ingress source and an egress destination', () => {
+    const rx = netInterface.anchors.find((a) => a.flow === 'ingress' && a.connector === 'out');
+    const tx = netInterface.anchors.find((a) => a.flow === 'egress'  && a.connector === 'in');
     expect(rx).toBeDefined();
     expect(tx).toBeDefined();
   });
