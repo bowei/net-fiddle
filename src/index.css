@@ -93,6 +93,17 @@ body,
   background: #ef4444;
   color: white;
 }
+.btn-panel {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+  width: 100%;
+  justify-content: center;
+}
+.btn-panel:hover {
+  background: #e2e8f0;
+  opacity: 1;
+}
 
 /* Body */
 .body {

@@ -22,7 +22,7 @@ import { REGISTRY, SIDEBAR_GROUPS } from './components/registry';
 import { ContainerComponentDef, type AnchorFlow } from './components/base';
 import { DragContext } from './DragContext';
 import { ALL_RULES, resolveEdgeHandleFlows, type GraphViolation } from './rules';
-import { Upload, Download, Trash2, X, FlaskConical, Image } from 'lucide-react';
+import { Upload, Download, Trash2, X, FlaskConical, Image, LayoutGrid } from 'lucide-react';
 import { toPng } from 'html-to-image';
 
 const nodeTypes = {
@@ -642,6 +642,62 @@ export default function App() {
   const selectedDef = selectedNode ? REGISTRY.get(selectedNode.data.nodeType) : null;
   const selectedIsContainer = selectedDef instanceof ContainerComponentDef;
 
+  const autoLayoutContainer = useCallback(() => {
+    if (!selectedNode || !(selectedDef instanceof ContainerComponentDef)) return;
+    const containerId = selectedNode.id;
+    const children = nodes.filter((n) => n.parentNode === containerId);
+    if (children.length === 0) return;
+
+    const PADDING = 16;
+    const TITLE_HEIGHT = 36;
+    const GAP = 12;
+    const DEFAULT_W = 150;
+    const DEFAULT_H = 60;
+
+    const cols = Math.max(1, Math.ceil(Math.sqrt(children.length)));
+
+    const colWidths = new Array(cols).fill(0) as number[];
+    const rowHeights: number[] = [];
+    children.forEach((child, i) => {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      colWidths[col] = Math.max(colWidths[col], child.width ?? DEFAULT_W);
+      rowHeights[row] = Math.max(rowHeights[row] ?? 0, child.height ?? DEFAULT_H);
+    });
+
+    const colOffsets: number[] = [PADDING];
+    for (let c = 0; c < cols - 1; c++) colOffsets.push(colOffsets[c] + colWidths[c] + GAP);
+
+    const rowOffsets: number[] = [TITLE_HEIGHT + PADDING];
+    for (let r = 0; r < rowHeights.length - 1; r++)
+      rowOffsets.push(rowOffsets[r] + rowHeights[r] + GAP);
+
+    const newPositions = new Map(
+      children.map((child, i) => [
+        child.id,
+        { x: colOffsets[i % cols], y: rowOffsets[Math.floor(i / cols)] },
+      ])
+    );
+
+    const totalContentW = colWidths.reduce((s, w) => s + w, 0) + (cols - 1) * GAP;
+    const totalContentH =
+      rowHeights.reduce((s, h) => s + h, 0) + (rowHeights.length - 1) * GAP;
+    const newWidth = Math.max(selectedDef.minWidth, PADDING * 2 + totalContentW);
+    const newHeight = Math.max(
+      selectedDef.minHeight,
+      TITLE_HEIGHT + PADDING * 2 + totalContentH
+    );
+
+    setNodes((nds) =>
+      nds.map((n) => {
+        if (n.id === containerId)
+          return { ...n, style: { ...n.style, width: newWidth, height: newHeight } };
+        const pos = newPositions.get(n.id);
+        return pos ? { ...n, position: pos } : n;
+      })
+    );
+  }, [selectedNode, selectedDef, nodes, setNodes]);
+
   return (
     <div className="app">
       <header className="header">
@@ -824,33 +880,38 @@ export default function App() {
             )}
 
             {selectedIsContainer && (
-              <div className="prop-group">
-                <span className="prop-label">Size</span>
-                <div className="position-row">
-                  <div className="position-field">
-                    <label>W</label>
-                    <input
-                      className="prop-input"
-                      type="number"
-                      readOnly
-                      value={Math.round(
-                        selectedNode.width ?? (selectedNode.style?.width as number) ?? 0
-                      )}
-                    />
-                  </div>
-                  <div className="position-field">
-                    <label>H</label>
-                    <input
-                      className="prop-input"
-                      type="number"
-                      readOnly
-                      value={Math.round(
-                        selectedNode.height ?? (selectedNode.style?.height as number) ?? 0
-                      )}
-                    />
+              <>
+                <div className="prop-group">
+                  <span className="prop-label">Size</span>
+                  <div className="position-row">
+                    <div className="position-field">
+                      <label>W</label>
+                      <input
+                        className="prop-input"
+                        type="number"
+                        readOnly
+                        value={Math.round(
+                          selectedNode.width ?? (selectedNode.style?.width as number) ?? 0
+                        )}
+                      />
+                    </div>
+                    <div className="position-field">
+                      <label>H</label>
+                      <input
+                        className="prop-input"
+                        type="number"
+                        readOnly
+                        value={Math.round(
+                          selectedNode.height ?? (selectedNode.style?.height as number) ?? 0
+                        )}
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
+                <button className="btn btn-panel" onClick={autoLayoutContainer}>
+                  <LayoutGrid size={14} /> Auto Layout
+                </button>
+              </>
             )}
 
             <div className="config-section">
