@@ -1,0 +1,105 @@
+{
+  "nodes": [
+    {
+      "id": "ns",
+      "type": "containerNode",
+      "position": { "x": 30, "y": 30 },
+      "style": { "width": 260, "height": 700 },
+      "zIndex": -1,
+      "data": { "nodeType": "namespace", "label": "ns0" }
+    },
+    {
+      "id": "eth0",
+      "type": "netNode",
+      "parentNode": "ns",
+      "position": { "x": 55, "y": 28 },
+      "data": { "nodeType": "interface", "label": "eth0" }
+    },
+    {
+      "id": "xdp",
+      "type": "netNode",
+      "parentNode": "ns",
+      "position": { "x": 60, "y": 120 },
+      "data": { "nodeType": "xdp-program", "label": "xdp-1" }
+    },
+    {
+      "id": "tc-ingress",
+      "type": "netNode",
+      "parentNode": "ns",
+      "position": { "x": 45, "y": 212 },
+      "data": { "nodeType": "traffic-control", "label": "tc-ingress", "config": { "direction": "ingress" } }
+    },
+    {
+      "id": "nft-prerouting",
+      "type": "netNode",
+      "parentNode": "ns",
+      "position": { "x": 28, "y": 304 },
+      "data": { "nodeType": "nftables-prerouting", "label": "nft-prerouting" }
+    },
+    {
+      "id": "routing",
+      "type": "netNode",
+      "parentNode": "ns",
+      "position": { "x": 42, "y": 396 },
+      "data": { "nodeType": "routing-table", "label": "routing" }
+    },
+    {
+      "id": "nft-input",
+      "type": "netNode",
+      "parentNode": "ns",
+      "position": { "x": 50, "y": 490 },
+      "data": { "nodeType": "nftables-input", "label": "nft-input" }
+    },
+    {
+      "id": "socket",
+      "type": "netNode",
+      "parentNode": "ns",
+      "position": { "x": 55, "y": 582 },
+      "data": { "nodeType": "socket", "label": "app-process" }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-eth0-xdp",
+      "source": "eth0",
+      "sourceHandle": "W-0-s",
+      "target": "xdp",
+      "targetHandle": "N-0-t"
+    },
+    {
+      "id": "e-xdp-tc",
+      "source": "xdp",
+      "sourceHandle": "S-0-s",
+      "target": "tc-ingress",
+      "targetHandle": "N-0-t"
+    },
+    {
+      "id": "e-tc-pre",
+      "source": "tc-ingress",
+      "sourceHandle": "S-0-s",
+      "target": "nft-prerouting",
+      "targetHandle": "N-0-t"
+    },
+    {
+      "id": "e-pre-routing",
+      "source": "nft-prerouting",
+      "sourceHandle": "S-0-s",
+      "target": "routing",
+      "targetHandle": "N-0-t"
+    },
+    {
+      "id": "e-routing-input",
+      "source": "routing",
+      "sourceHandle": "S-0-s",
+      "target": "nft-input",
+      "targetHandle": "N-0-t"
+    },
+    {
+      "id": "e-input-socket",
+      "source": "nft-input",
+      "sourceHandle": "S-0-s",
+      "target": "socket",
+      "targetHandle": "S-0-t"
+    }
+  ]
+}

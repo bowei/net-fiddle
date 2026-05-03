@@ -1,0 +1,91 @@
+{
+  "nodes": [
+    {
+      "id": "ns",
+      "type": "containerNode",
+      "position": { "x": 30, "y": 30 },
+      "style": { "width": 260, "height": 610 },
+      "zIndex": -1,
+      "data": { "nodeType": "namespace", "label": "ns0" }
+    },
+    {
+      "id": "socket",
+      "type": "netNode",
+      "parentNode": "ns",
+      "position": { "x": 55, "y": 28 },
+      "data": { "nodeType": "socket", "label": "app-process" }
+    },
+    {
+      "id": "nft-output",
+      "type": "netNode",
+      "parentNode": "ns",
+      "position": { "x": 45, "y": 120 },
+      "data": { "nodeType": "nftables-output", "label": "nft-output" }
+    },
+    {
+      "id": "nft-postrouting",
+      "type": "netNode",
+      "parentNode": "ns",
+      "position": { "x": 28, "y": 212 },
+      "data": { "nodeType": "nftables-postrouting", "label": "nft-postrouting" }
+    },
+    {
+      "id": "tc-egress",
+      "type": "netNode",
+      "parentNode": "ns",
+      "position": { "x": 45, "y": 304 },
+      "data": { "nodeType": "traffic-control", "label": "tc-egress", "config": { "direction": "egress" } }
+    },
+    {
+      "id": "qdisc",
+      "type": "netNode",
+      "parentNode": "ns",
+      "position": { "x": 65, "y": 396 },
+      "data": { "nodeType": "qdisc", "label": "qdisc-0", "config": { "type": "fq" } }
+    },
+    {
+      "id": "eth0",
+      "type": "netNode",
+      "parentNode": "ns",
+      "position": { "x": 55, "y": 490 },
+      "data": { "nodeType": "interface", "label": "eth0" }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-socket-nft-out",
+      "source": "socket",
+      "sourceHandle": "N-0-s",
+      "target": "nft-output",
+      "targetHandle": "N-0-t"
+    },
+    {
+      "id": "e-nft-out-post",
+      "source": "nft-output",
+      "sourceHandle": "S-0-s",
+      "target": "nft-postrouting",
+      "targetHandle": "N-0-t"
+    },
+    {
+      "id": "e-post-tc",
+      "source": "nft-postrouting",
+      "sourceHandle": "S-0-s",
+      "target": "tc-egress",
+      "targetHandle": "N-0-t"
+    },
+    {
+      "id": "e-tc-qdisc",
+      "source": "tc-egress",
+      "sourceHandle": "S-0-s",
+      "target": "qdisc",
+      "targetHandle": "N-0-t"
+    },
+    {
+      "id": "e-qdisc-eth0",
+      "source": "qdisc",
+      "sourceHandle": "S-0-s",
+      "target": "eth0",
+      "targetHandle": "E-0-t"
+    }
+  ]
+}
