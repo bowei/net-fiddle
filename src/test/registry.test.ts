@@ -10,7 +10,8 @@ import { tcBpfProgram } from '../components/tcBpfProgram';
 import { schedBpf } from '../components/schedBpf';
 import { netkitPrimary } from '../components/netkitPrimary';
 import { netkitPeer } from '../components/netkitPeer';
-import { netkitBpf } from '../components/netkitBpf';
+import { netkitBpfIngress } from '../components/netkitBpfIngress';
+import { netkitBpfEgress } from '../components/netkitBpfEgress';
 import { nftablesPrerouting } from '../components/nftablesPrerouting';
 import { nftablesInput } from '../components/nftablesInput';
 import { nftablesForward } from '../components/nftablesForward';
@@ -23,7 +24,7 @@ import { vethEnd } from '../components/vethEnd';
 // All ComponentDefs including registry-only ones (not in sidebar, e.g. veth-end).
 const ALL_DEFS = [
   namespace, netInterface, routingTable, trafficControl,
-  xdpProgram, tcBpfProgram, schedBpf, netkitBpf,
+  xdpProgram, tcBpfProgram, schedBpf, netkitBpfIngress, netkitBpfEgress,
   nftablesPrerouting, nftablesInput, nftablesForward, nftablesOutput, nftablesPostrouting,
   qdisc, socket, vethEnd, netkitPrimary, netkitPeer,
 ];

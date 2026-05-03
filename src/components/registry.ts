@@ -17,7 +17,8 @@ import { vethEnd } from './vethEnd';
 import { vethPair, type SidebarTemplate } from './vethPair';
 import { netkitPrimary } from './netkitPrimary';
 import { netkitPeer } from './netkitPeer';
-import { netkitBpf } from './netkitBpf';
+import { netkitBpfIngress } from './netkitBpfIngress';
+import { netkitBpfEgress } from './netkitBpfEgress';
 import { netkitPair } from './netkitPair';
 
 export type { SidebarTemplate };
@@ -68,7 +69,7 @@ export const SIDEBAR_GROUPS: readonly SidebarGroup[] = [
   },
   {
     label: 'Netkit',
-    items: [netkitBpf],
+    items: [netkitBpfIngress, netkitBpfEgress],
   },
 ];
 
