@@ -20,7 +20,7 @@ Out of scope for v1: bridge/L2 paths, WireGuard/IPsec tunnels, multi-table routi
 - Root (or `CAP_SYS_ADMIN` + `CAP_NET_ADMIN` + `CAP_SYS_PTRACE`)
 - Kernel ≥ 5.10 (for `bpftool net` JSON output)
 - Userspace tools present: `ip`, `bpftool`, `nft`, `tc`, `ss`
-- Python ≥ 3.9 (implementation language)
+- Go ≥ 1.22 (build-time only; the compiled binary has no runtime dependencies)
 
 ---
 
@@ -68,6 +68,41 @@ Out of scope for v1: bridge/L2 paths, WireGuard/IPsec tunnels, multi-table routi
 │   serialises to topology JSON (stdout or --output FILE)       │
 └──────────────────────────────────────────────────────────────┘
 ```
+
+### Package layout
+
+```
+scanner/
+  cmd/net-fiddle-scan/
+    main.go           entry point, flag parsing, orchestration
+  internal/
+    ns/
+      enumerator.go   NsEnumerator
+      collector.go    NsCollector + sub-collectors
+      types.go        NsInfo, NsSnapshot, InterfaceInfo, …
+    linker/
+      linker.go       PairLinker
+    builder/
+      builder.go      TopologyBuilder
+      edges.go        edge chain inference
+    layout/
+      layout.go       Layouter
+    topology/
+      types.go        Node, Edge, NetNodeData (matches topology-spec.json)
+      emit.go         JSON serialisation
+```
+
+All inter-package data flows through plain structs; no global state. Each `internal/` package is independently unit-testable by injecting a mock command runner (`type Runner func(args ...string) ([]byte, error)`).
+
+### Namespace entry
+
+Entering a namespace from a single-threaded context requires locking the OS thread and calling `setns(2)` directly — Go's goroutine scheduler may reschedule onto a different OS thread otherwise. The collector goroutine calls `runtime.LockOSThread()` before `setns`, performs all collection, then returns. Alternatively, the binary re-execs itself with a `--in-ns <fd>` flag so the child process is wholly inside the target namespace from startup; this avoids `setns` threading concerns entirely and is the preferred approach.
+
+Re-exec flow:
+1. Parent opens the namespace fd (`/proc/<pid>/ns/net` or `/var/run/netns/<name>`)
+2. Parent forks a child via `os/exec` passing `--in-ns <fd>` and `--collect-json`
+3. Child calls `unix.Setns(fd, unix.CLONE_NEWNET)` before any goroutines start (in an `init()` function gated on the flag), then runs all collectors and writes JSON to stdout
+4. Parent reads the JSON snapshot from the child's stdout
 
 ---
 
@@ -285,9 +320,18 @@ Options:
 
 Example:
 ```bash
-sudo net-fiddle-scan --pretty --output topology.json
+# Build
+go build -o net-fiddle-scan ./cmd/net-fiddle-scan
+
+# Run
+sudo ./net-fiddle-scan --pretty --output topology.json
 # then import topology.json into the Net Fiddle webapp
+
+# Cross-compile for a remote Linux host (from macOS/Windows dev machine)
+GOOS=linux GOARCH=amd64 go build -o net-fiddle-scan ./cmd/net-fiddle-scan
 ```
+
+The binary is statically linked (`CGO_ENABLED=0`) so it can be copied to any Linux host without installing Go or any libraries.
 
 ---
 
