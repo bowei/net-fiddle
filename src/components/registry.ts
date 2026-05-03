@@ -5,6 +5,7 @@ import { routingTable } from './routingTable';
 import { trafficControl } from './trafficControl';
 import { xdpProgram } from './xdpProgram';
 import { tcBpfProgram } from './tcBpfProgram';
+import { schedBpf } from './schedBpf';
 import { nftablesPrerouting } from './nftablesPrerouting';
 import { nftablesInput } from './nftablesInput';
 import { nftablesForward } from './nftablesForward';
@@ -47,7 +48,7 @@ export const SIDEBAR_GROUPS: readonly SidebarGroup[] = [
   },
   {
     label: 'BPF / TC',
-    items: [xdpProgram, trafficControl, tcBpfProgram],
+    items: [xdpProgram, trafficControl, tcBpfProgram, schedBpf],
   },
 ];
 

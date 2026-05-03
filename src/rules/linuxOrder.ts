@@ -25,6 +25,7 @@ function egressOrder(nodeType: string, config?: Record<string, string>): number 
     case 'nftables-postrouting':    return 2;
     case 'traffic-control':
     case 'tc-bpf-program':          return config?.direction === 'egress' ? 3 : null;
+    case 'sched-bpf':               return 3;
     case 'qdisc':                   return 4;
     case 'interface':
     case 'veth-end':                return 5;
