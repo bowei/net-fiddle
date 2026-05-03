@@ -19,10 +19,9 @@ export class NetkitPeerComponent extends ComponentDef {
   ] as const;
   // N: container network stack. S: locked peer link. W/E: BPF hook attachment points.
   readonly anchors = [
-    { side: 'N', count: 1, flow: 'any'     as const, connector: 'both' as const },
-    { side: 'S', count: 1, flow: 'any'     as const, connector: 'both' as const },
-    { side: 'W', count: 1, flow: 'ingress' as const, connector: 'in'   as const },
-    { side: 'E', count: 1, flow: 'egress'  as const, connector: 'in'   as const },
+    { side: 'S', count: 1, flow: 'any' as const, connector: 'both' as const },
+    { side: 'E', count: 1, flow: 'ingress' as const, connector: 'out' as const },
+    { side: 'E', count: 1, flow: 'egress' as const, connector: 'in' as const },
   ] as const;
 }
 
