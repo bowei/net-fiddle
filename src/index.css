@@ -476,6 +476,28 @@ html, body, #root {
   color: #374151;
 }
 
+.edge-tooltip {
+  position: absolute;
+  z-index: 1000;
+  background: #1e293b;
+  color: #f8fafc;
+  border-left: 3px solid #ef4444;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  max-width: 320px;
+  pointer-events: none;
+  transform: translate(14px, -50%);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
+.edge-tooltip > div + div {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid #334155;
+}
+
 .status-violations {
   margin-left: auto;
   margin-right: 8px;

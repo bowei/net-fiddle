@@ -124,6 +124,7 @@ export default function App() {
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [hoverContainerId, setHoverContainerId] = useState<string | null>(null);
+  const [edgeTooltip, setEdgeTooltip] = useState<{ messages: string[]; x: number; y: number } | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const counters = useRef<Record<string, number>>({});
   const edgeReconnectSuccessful = useRef(true);
@@ -174,6 +175,23 @@ export default function App() {
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
     [setEdges]
   );
+
+  const onEdgeMouseEnter = useCallback(
+    (event: React.MouseEvent, edge: Edge) => {
+      const msgs = (violationsByEdge.get(edge.id) ?? []).map((v) => v.message);
+      if (msgs.length === 0) return;
+      const rect = wrapperRef.current?.getBoundingClientRect();
+      setEdgeTooltip({ messages: msgs, x: event.clientX - (rect?.left ?? 0), y: event.clientY - (rect?.top ?? 0) });
+    },
+    [violationsByEdge]
+  );
+
+  const onEdgeMouseMove = useCallback((event: React.MouseEvent) => {
+    const rect = wrapperRef.current?.getBoundingClientRect();
+    setEdgeTooltip((t) => t ? { ...t, x: event.clientX - (rect?.left ?? 0), y: event.clientY - (rect?.top ?? 0) } : null);
+  }, []);
+
+  const onEdgeMouseLeave = useCallback(() => setEdgeTooltip(null), []);
 
   const onEdgeReconnectStart = useCallback((_event: unknown, edge: Edge) => {
     if (edge.data?.vethLink) { edgeReconnectSuccessful.current = true; return; }
@@ -499,6 +517,9 @@ export default function App() {
               onNodeDrag={onNodeDrag}
               onNodeDragStop={onNodeDragStop}
               onInit={setRfInstance}
+              onEdgeMouseEnter={onEdgeMouseEnter}
+              onEdgeMouseMove={onEdgeMouseMove}
+              onEdgeMouseLeave={onEdgeMouseLeave}
               nodeTypes={nodeTypes}
               fitView={nodes.length > 0}
               deleteKeyCode={null}
@@ -507,6 +528,11 @@ export default function App() {
               <Controls />
             </ReactFlow>
           </DragContext.Provider>
+          {edgeTooltip && (
+            <div className="edge-tooltip" style={{ left: edgeTooltip.x, top: edgeTooltip.y }}>
+              {edgeTooltip.messages.map((msg, i) => <div key={i}>{msg}</div>)}
+            </div>
+          )}
         </div>
 
         {selectedNode && selectedDef && (
