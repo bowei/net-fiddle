@@ -13,6 +13,7 @@ import { nftablesOutput } from './nftablesOutput';
 import { nftablesPostrouting } from './nftablesPostrouting';
 import { qdisc } from './qdisc';
 import { socket } from './socket';
+import { network } from './network';
 import { vethEnd } from './vethEnd';
 import { vethPair, type SidebarTemplate } from './vethPair';
 import { netkitPrimary } from './netkitPrimary';
@@ -39,7 +40,7 @@ export interface SidebarGroup {
 export const SIDEBAR_GROUPS: readonly SidebarGroup[] = [
   {
     label: 'OS',
-    items: [namespace, socket],
+    items: [namespace, socket, network],
   },
   {
     label: 'Interface',
@@ -61,15 +62,11 @@ export const SIDEBAR_GROUPS: readonly SidebarGroup[] = [
   },
   {
     label: 'TC',
-    items: [trafficControl, qdisc, tcBpfProgram, schedBpf],
+    items: [trafficControl, qdisc],
   },
   {
     label: 'BPF',
-    items: [xdpProgram],
-  },
-  {
-    label: 'Netkit',
-    items: [netkitBpfIngress, netkitBpfEgress],
+    items: [xdpProgram, tcBpfProgram, schedBpf, netkitBpfIngress, netkitBpfEgress],
   },
 ];
 

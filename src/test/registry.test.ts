@@ -19,6 +19,7 @@ import { nftablesOutput } from '../components/nftablesOutput';
 import { nftablesPostrouting } from '../components/nftablesPostrouting';
 import { qdisc } from '../components/qdisc';
 import { socket } from '../components/socket';
+import { network } from '../components/network';
 import { vethEnd } from '../components/vethEnd';
 
 // All ComponentDefs including registry-only ones (not in sidebar, e.g. veth-end).
@@ -26,7 +27,7 @@ const ALL_DEFS = [
   namespace, netInterface, routingTable, trafficControl,
   xdpProgram, tcBpfProgram, schedBpf, netkitBpfIngress, netkitBpfEgress,
   nftablesPrerouting, nftablesInput, nftablesForward, nftablesOutput, nftablesPostrouting,
-  qdisc, socket, vethEnd, netkitPrimary, netkitPeer,
+  qdisc, socket, network, vethEnd, netkitPrimary, netkitPeer,
 ];
 
 // ComponentDefs that appear in the sidebar (registry-only types excluded).
