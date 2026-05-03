@@ -476,6 +476,19 @@ html, body, #root {
   color: #374151;
 }
 
+.status-violations {
+  margin-left: auto;
+  margin-right: 8px;
+  padding: 2px 8px;
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fca5a5;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: default;
+}
+
 .status-help {
   width: 24px;
   height: 24px;

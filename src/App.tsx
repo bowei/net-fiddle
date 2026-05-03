@@ -27,8 +27,8 @@ import CustomNode, { type NetNodeData } from './CustomNode';
 import ContainerNode from './ContainerNode';
 import { REGISTRY, SIDEBAR_GROUPS } from './components/registry';
 import { ContainerComponentDef, type AnchorFlow } from './components/base';
-import { resolveHandles } from './anchorUtils';
 import { DragContext } from './DragContext';
+import { ALL_RULES, resolveEdgeHandleFlows, type GraphViolation } from './rules';
 import {
   Upload,
   Download,
@@ -53,34 +53,6 @@ function findContainerAt(pos: XYPosition, containers: Node[]): Node | undefined 
     return pos.x >= c.position.x && pos.x <= c.position.x + w &&
            pos.y >= c.position.y && pos.y <= c.position.y + h;
   });
-}
-
-/** Resolves the flow types of both handles on an edge. Returns null if either is unresolvable. */
-function resolveEdgeHandleFlows(
-  edge: Edge,
-  nodes: Node<NetNodeData>[]
-): { src: AnchorFlow; tgt: AnchorFlow } | null {
-  if (!edge.sourceHandle || !edge.targetHandle) return null;
-  const src = nodes.find((n) => n.id === edge.source);
-  const tgt = nodes.find((n) => n.id === edge.target);
-  if (!src || !tgt) return null;
-  const srcDef = REGISTRY.get(src.data.nodeType);
-  const tgtDef = REGISTRY.get(tgt.data.nodeType);
-  if (!srcDef || !tgtDef) return null;
-  // Strip the '-s'/'-t' suffix added by CustomNode to get the base handle id.
-  const srcHandleId = edge.sourceHandle.replace(/-[st]$/, '');
-  const tgtHandleId = edge.targetHandle.replace(/-[st]$/, '');
-  const srcHandle = resolveHandles(srcDef.getAnchors(src.data.config ?? {})).find((h) => h.id === srcHandleId);
-  const tgtHandle = resolveHandles(tgtDef.getAnchors(tgt.data.config ?? {})).find((h) => h.id === tgtHandleId);
-  if (!srcHandle || !tgtHandle) return null;
-  return { src: srcHandle.flow, tgt: tgtHandle.flow };
-}
-
-function edgeFlowCompatible(edge: Edge, nodes: Node<NetNodeData>[]): boolean {
-  const flows = resolveEdgeHandleFlows(edge, nodes);
-  if (!flows) return true;
-  if (flows.src === 'any' || flows.tgt === 'any') return true;
-  return flows.src === flows.tgt;
 }
 
 /** Returns the dominant flow type of an edge for coloring/arrow purposes. */
@@ -156,14 +128,29 @@ export default function App() {
   const counters = useRef<Record<string, number>>({});
   const edgeReconnectSuccessful = useRef(true);
 
-  // Derive edges with flow-colored strokes, directional arrowheads, and mismatch warnings.
+  const violations = useMemo<GraphViolation[]>(
+    () => ALL_RULES.flatMap((r) => r.check(nodes, edges)),
+    [nodes, edges]
+  );
+
+  const violationsByEdge = useMemo(() => {
+    const map = new Map<string, GraphViolation[]>();
+    for (const v of violations) {
+      if (!v.edgeId) continue;
+      if (!map.has(v.edgeId)) map.set(v.edgeId, []);
+      map.get(v.edgeId)!.push(v);
+    }
+    return map;
+  }, [violations]);
+
+  // Derive edges with flow-colored strokes, directional arrowheads, and violation warnings.
   const styledEdges = useMemo(
     () =>
       edges.map((e) => {
         if (e.data?.vethLink) return e;
-        const compatible = edgeFlowCompatible(e, nodes);
+        const hasError = (violationsByEdge.get(e.id) ?? []).some((v) => v.severity === 'error');
         const flow = edgeFlowType(e, nodes);
-        const color = !compatible
+        const color = hasError
           ? '#ef4444'
           : flow === 'ingress'
           ? '#3b82f6'
@@ -175,12 +162,12 @@ export default function App() {
           : undefined;
         return {
           ...e,
-          style: color ? { ...e.style, stroke: color, strokeWidth: compatible ? 1.5 : 2 } : e.style,
+          style: color ? { ...e.style, stroke: color, strokeWidth: hasError ? 2 : 1.5 } : e.style,
           markerEnd: marker,
-          label: !compatible ? '⚠' : e.label,
+          label: hasError ? '⚠' : e.label,
         };
       }),
-    [edges, nodes]
+    [edges, nodes, violationsByEdge]
   );
 
   const onConnect = useCallback(
@@ -604,6 +591,11 @@ export default function App() {
           <div className="shortcut"><span className="kbd">Drag</span> handle to connect</div>
           <div className="shortcut"><span className="kbd">Esc</span> Deselect</div>
         </div>
+        {violations.length > 0 && (
+          <div className="status-violations" title={violations.map((v) => v.message).join('\n')}>
+            ⚠ {violations.length} violation{violations.length > 1 ? 's' : ''}
+          </div>
+        )}
         <button className="status-help" title="Help">?</button>
       </footer>
     </div>
