@@ -17,8 +17,12 @@ export function resolveEdgeHandleFlows(
   if (!srcDef || !tgtDef) return null;
   const srcHandleId = edge.sourceHandle.replace(/-[st]$/, '');
   const tgtHandleId = edge.targetHandle.replace(/-[st]$/, '');
-  const srcHandle = resolveHandles(srcDef.getAnchors(src.data.config ?? {})).find((h) => h.id === srcHandleId);
-  const tgtHandle = resolveHandles(tgtDef.getAnchors(tgt.data.config ?? {})).find((h) => h.id === tgtHandleId);
+  const srcHandle = resolveHandles(srcDef.getAnchors(src.data.config ?? {})).find(
+    (h) => h.id === srcHandleId
+  );
+  const tgtHandle = resolveHandles(tgtDef.getAnchors(tgt.data.config ?? {})).find(
+    (h) => h.id === tgtHandleId
+  );
   if (!srcHandle || !tgtHandle) return null;
   return { src: srcHandle.flow, tgt: tgtHandle.flow };
 }

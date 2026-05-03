@@ -20,7 +20,7 @@ export class NetInterfaceComponent extends ComponentDef {
   // E: egress path enters right from TC-tx → qdisc.
   readonly anchors = [
     { side: 'N', count: 1, flow: 'ingress' as const, connector: 'out' as const },
-    { side: 'N', count: 1, flow: 'egress' as const,  connector: 'in' as const },
+    { side: 'N', count: 1, flow: 'egress' as const, connector: 'in' as const },
   ] as const;
 }
 

@@ -83,8 +83,8 @@ function CustomNode({ id, data, selected }: NodeProps<NetNodeData>) {
     group.sort((a, b) => {
       const ca = connectedCenter.get(a.id);
       const cb = connectedCenter.get(b.id);
-      const ka = ca ? (isNS ? ca.x : ca.y) : (isNS ? thisCx : thisCy);
-      const kb = cb ? (isNS ? cb.x : cb.y) : (isNS ? thisCx : thisCy);
+      const ka = ca ? (isNS ? ca.x : ca.y) : isNS ? thisCx : thisCy;
+      const kb = cb ? (isNS ? cb.x : cb.y) : isNS ? thisCx : thisCy;
       return ka - kb;
     });
   }
@@ -104,7 +104,9 @@ function CustomNode({ id, data, selected }: NodeProps<NetNodeData>) {
   // so we must also retrigger here — not just when dynSide changes.
   const updateNodeInternals = useUpdateNodeInternals();
   const dynKey = positioned.map((h) => `${h.id}:${h.dynSide}:${h.dynIdx}:${h.dynTotal}`).join(',');
-  useEffect(() => { updateNodeInternals(id); }, [dynKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    updateNodeInternals(id);
+  }, [dynKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div
@@ -114,14 +116,33 @@ function CustomNode({ id, data, selected }: NodeProps<NetNodeData>) {
       {positioned.flatMap(({ id: hid, flow, connector, dynSide, dynIdx, dynTotal }) => {
         const color = anchorFlowColor(flow, def.color);
         const base = { ...HANDLE_SIZE, ...anchorStyle(dynSide, dynIdx, dynTotal) };
-        const solidStyle  = { ...base, background: color,         border: `2px solid ${color}` };
+        const solidStyle = { ...base, background: color, border: `2px solid ${color}` };
         const hollowStyle = { ...base, background: 'transparent', border: `2px solid ${color}` };
         const pos = toRFPosition(dynSide);
         const els: ReactElement[] = [];
         // Include dynSide in key so React remounts the Handle when the side changes,
         // forcing ReactFlow to re-register the handle position in its internal store.
-        if (connector !== 'out') els.push(<Handle key={`${hid}-${dynSide}-t`} id={`${hid}-t`} type="target" position={pos} style={hollowStyle} />);
-        if (connector !== 'in')  els.push(<Handle key={`${hid}-${dynSide}-s`} id={`${hid}-s`} type="source" position={pos} style={solidStyle} />);
+        if (connector !== 'out')
+          els.push(
+            <Handle
+              key={`${hid}-${dynSide}-t`}
+              id={`${hid}-t`}
+              type="target"
+              position={pos}
+              style={hollowStyle}
+              isConnectableStart={false}
+            />
+          );
+        if (connector !== 'in')
+          els.push(
+            <Handle
+              key={`${hid}-${dynSide}-s`}
+              id={`${hid}-s`}
+              type="source"
+              position={pos}
+              style={solidStyle}
+            />
+          );
         return els;
       })}
 

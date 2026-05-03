@@ -3,13 +3,13 @@ import { ComponentDef } from './base';
 
 export class QdiscComponent extends ComponentDef {
   readonly type = 'qdisc';
-  readonly label = 'Qdisc';
+  readonly label = 'tc egress';
   readonly typeLabel = 'qdisc';
   readonly color = '#0891b2';
   readonly bgColor = '#ecfeff';
   readonly borderColor = '#67e8f9';
   readonly icon = Layers;
-  readonly configTitle = 'Qdisc Config';
+  readonly configTitle = 'tc egress';
   readonly configItems = [
     'Egress-only; after TC egress classifier',
     'HTB, FQ, pfifo_fast, TBF, FQ-CoDel',

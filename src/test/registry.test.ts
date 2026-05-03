@@ -4,10 +4,10 @@ import { ComponentDef, ContainerComponentDef } from '../components/base';
 import { namespace } from '../components/namespace';
 import { netInterface } from '../components/netInterface';
 import { routingTable } from '../components/routingTable';
-import { trafficControl } from '../components/trafficControl';
-import { xdpProgram } from '../components/xdpProgram';
-import { tcBpfProgram } from '../components/tcBpfProgram';
-import { schedBpf } from '../components/schedBpf';
+import { trafficControl } from '../components/tcIngress';
+import { xdpProgram } from '../components/xdp';
+import { tcBpfProgram } from '../components/tcIngressBpf';
+import { schedBpf } from '../components/tcEgressBpf';
 import { netkitPrimary } from '../components/netkitPrimary';
 import { netkitPeer } from '../components/netkitPeer';
 import { netkitBpfIngress } from '../components/netkitBpfIngress';
@@ -17,17 +17,33 @@ import { nftablesInput } from '../components/nftablesInput';
 import { nftablesForward } from '../components/nftablesForward';
 import { nftablesOutput } from '../components/nftablesOutput';
 import { nftablesPostrouting } from '../components/nftablesPostrouting';
-import { qdisc } from '../components/qdisc';
+import { qdisc } from '../components/tcEgress';
 import { socket } from '../components/socket';
 import { network } from '../components/network';
 import { vethEnd } from '../components/vethEnd';
 
 // All ComponentDefs including registry-only ones (not in sidebar, e.g. veth-end).
 const ALL_DEFS = [
-  namespace, netInterface, routingTable, trafficControl,
-  xdpProgram, tcBpfProgram, schedBpf, netkitBpfIngress, netkitBpfEgress,
-  nftablesPrerouting, nftablesInput, nftablesForward, nftablesOutput, nftablesPostrouting,
-  qdisc, socket, network, vethEnd, netkitPrimary, netkitPeer,
+  namespace,
+  netInterface,
+  routingTable,
+  trafficControl,
+  xdpProgram,
+  tcBpfProgram,
+  schedBpf,
+  netkitBpfIngress,
+  netkitBpfEgress,
+  nftablesPrerouting,
+  nftablesInput,
+  nftablesForward,
+  nftablesOutput,
+  nftablesPostrouting,
+  qdisc,
+  socket,
+  network,
+  vethEnd,
+  netkitPrimary,
+  netkitPeer,
 ];
 
 // ComponentDefs that appear in the sidebar (registry-only types excluded).
@@ -149,7 +165,7 @@ describe('nftables hooks', () => {
 describe('interface anchors', () => {
   it('has an ingress source and an egress destination', () => {
     const rx = netInterface.anchors.find((a) => a.flow === 'ingress' && a.connector === 'out');
-    const tx = netInterface.anchors.find((a) => a.flow === 'egress'  && a.connector === 'in');
+    const tx = netInterface.anchors.find((a) => a.flow === 'egress' && a.connector === 'in');
     expect(rx).toBeDefined();
     expect(tx).toBeDefined();
   });

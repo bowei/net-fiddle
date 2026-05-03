@@ -3,7 +3,7 @@ import type { SidebarTemplate } from './vethPair';
 
 export const netkitPair: SidebarTemplate = {
   type: 'netkit',
-  label: 'Netkit Pair',
+  label: 'netkit',
   color: '#0d9488',
   icon: Cable,
 };

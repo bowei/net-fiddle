@@ -1,11 +1,4 @@
-import {
-  useState,
-  useCallback,
-  useRef,
-  useEffect,
-  useMemo,
-  DragEvent,
-} from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo, DragEvent } from 'react';
 import ReactFlow, {
   addEdge,
   updateEdge,
@@ -29,13 +22,7 @@ import { REGISTRY, SIDEBAR_GROUPS } from './components/registry';
 import { ContainerComponentDef, type AnchorFlow } from './components/base';
 import { DragContext } from './DragContext';
 import { ALL_RULES, resolveEdgeHandleFlows, type GraphViolation } from './rules';
-import {
-  Upload,
-  Download,
-  Trash2,
-  X,
-  FlaskConical,
-} from 'lucide-react';
+import { Upload, Download, Trash2, X, FlaskConical } from 'lucide-react';
 
 const nodeTypes = {
   netNode: CustomNode,
@@ -50,8 +37,12 @@ function findContainerAt(pos: XYPosition, containers: Node[]): Node | undefined 
   return containers.find((c) => {
     const w = c.width ?? (c.style?.width as number) ?? 300;
     const h = c.height ?? (c.style?.height as number) ?? 200;
-    return pos.x >= c.position.x && pos.x <= c.position.x + w &&
-           pos.y >= c.position.y && pos.y <= c.position.y + h;
+    return (
+      pos.x >= c.position.x &&
+      pos.x <= c.position.x + w &&
+      pos.y >= c.position.y &&
+      pos.y <= c.position.y + h
+    );
   });
 }
 
@@ -111,10 +102,34 @@ const SAMPLE_NODES: Node<NetNodeData>[] = [
 ];
 
 const SAMPLE_EDGES = [
-  { id: 'e-sock-out', source: 'socket-1', sourceHandle: 'N-0-s', target: 'nft-out-1', targetHandle: 'N-0-t' },
-  { id: 'e-out-iface', source: 'nft-out-1', sourceHandle: 'S-0-s', target: 'iface-1', targetHandle: 'E-0-t' },
-  { id: 'e-iface-xdp', source: 'iface-1', sourceHandle: 'W-0-s', target: 'xdp-1', targetHandle: 'N-0-t' },
-  { id: 'e-iface-tc', source: 'iface-1', sourceHandle: 'W-0-s', target: 'tc-rx-1', targetHandle: 'N-0-t' },
+  {
+    id: 'e-sock-out',
+    source: 'socket-1',
+    sourceHandle: 'N-0-s',
+    target: 'nft-out-1',
+    targetHandle: 'N-0-t',
+  },
+  {
+    id: 'e-out-iface',
+    source: 'nft-out-1',
+    sourceHandle: 'S-0-s',
+    target: 'iface-1',
+    targetHandle: 'E-0-t',
+  },
+  {
+    id: 'e-iface-xdp',
+    source: 'iface-1',
+    sourceHandle: 'W-0-s',
+    target: 'xdp-1',
+    targetHandle: 'N-0-t',
+  },
+  {
+    id: 'e-iface-tc',
+    source: 'iface-1',
+    sourceHandle: 'W-0-s',
+    target: 'tc-rx-1',
+    targetHandle: 'N-0-t',
+  },
 ];
 
 export default function App() {
@@ -124,7 +139,11 @@ export default function App() {
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [hoverContainerId, setHoverContainerId] = useState<string | null>(null);
-  const [edgeTooltip, setEdgeTooltip] = useState<{ messages: string[]; x: number; y: number } | null>(null);
+  const [edgeTooltip, setEdgeTooltip] = useState<{
+    messages: string[];
+    x: number;
+    y: number;
+  } | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const counters = useRef<Record<string, number>>({});
   const edgeReconnectSuccessful = useRef(true);
@@ -154,10 +173,10 @@ export default function App() {
         const color = hasError
           ? '#ef4444'
           : flow === 'ingress'
-          ? '#3b82f6'
-          : flow === 'egress'
-          ? '#f59e0b'
-          : undefined;
+            ? '#3b82f6'
+            : flow === 'egress'
+              ? '#f59e0b'
+              : undefined;
         const marker = color
           ? { type: MarkerType.ArrowClosed, color, width: 16, height: 16 }
           : undefined;
@@ -181,20 +200,29 @@ export default function App() {
       const msgs = (violationsByEdge.get(edge.id) ?? []).map((v) => v.message);
       if (msgs.length === 0) return;
       const rect = wrapperRef.current?.getBoundingClientRect();
-      setEdgeTooltip({ messages: msgs, x: event.clientX - (rect?.left ?? 0), y: event.clientY - (rect?.top ?? 0) });
+      setEdgeTooltip({
+        messages: msgs,
+        x: event.clientX - (rect?.left ?? 0),
+        y: event.clientY - (rect?.top ?? 0),
+      });
     },
     [violationsByEdge]
   );
 
   const onEdgeMouseMove = useCallback((event: React.MouseEvent) => {
     const rect = wrapperRef.current?.getBoundingClientRect();
-    setEdgeTooltip((t) => t ? { ...t, x: event.clientX - (rect?.left ?? 0), y: event.clientY - (rect?.top ?? 0) } : null);
+    setEdgeTooltip((t) =>
+      t ? { ...t, x: event.clientX - (rect?.left ?? 0), y: event.clientY - (rect?.top ?? 0) } : null
+    );
   }, []);
 
   const onEdgeMouseLeave = useCallback(() => setEdgeTooltip(null), []);
 
   const onEdgeReconnectStart = useCallback((_event: unknown, edge: Edge) => {
-    if (edge.data?.vethLink) { edgeReconnectSuccessful.current = true; return; }
+    if (edge.data?.vethLink) {
+      edgeReconnectSuccessful.current = true;
+      return;
+    }
     edgeReconnectSuccessful.current = false;
   }, []);
 
@@ -244,8 +272,14 @@ export default function App() {
       setIsDragOver(true);
       if (!rfInstance || !wrapperRef.current) return;
       const bounds = wrapperRef.current.getBoundingClientRect();
-      const pos = rfInstance.project({ x: event.clientX - bounds.left, y: event.clientY - bounds.top });
-      const found = findContainerAt(pos, nodes.filter((n) => n.type === 'containerNode'));
+      const pos = rfInstance.project({
+        x: event.clientX - bounds.left,
+        y: event.clientY - bounds.top,
+      });
+      const found = findContainerAt(
+        pos,
+        nodes.filter((n) => n.type === 'containerNode')
+      );
       setHoverContainerId(found?.id ?? null);
     },
     [nodes, rfInstance]
@@ -265,7 +299,10 @@ export default function App() {
       if (!nodeType || !rfInstance || !wrapperRef.current) return;
 
       const bounds = wrapperRef.current.getBoundingClientRect();
-      const canvasPos = rfInstance.project({ x: event.clientX - bounds.left, y: event.clientY - bounds.top });
+      const canvasPos = rfInstance.project({
+        x: event.clientX - bounds.left,
+        y: event.clientY - bounds.top,
+      });
 
       if (nodeType === 'veth') {
         const pairN = (counters.current['veth'] ?? 0) + 1;
@@ -273,28 +310,41 @@ export default function App() {
         const pairId = `veth-pair-${pairN}`;
         const aId = `veth-${pairN}a`;
         const bId = `veth-${pairN}b`;
-        const parent = findContainerAt(canvasPos, nodes.filter((n) => n.type === 'containerNode'));
+        const parent = findContainerAt(
+          canvasPos,
+          nodes.filter((n) => n.type === 'containerNode')
+        );
         const makeVethNode = (id: string, label: string, dx: number) => {
           const pos = parent
             ? { x: canvasPos.x - parent.position.x + dx, y: canvasPos.y - parent.position.y }
             : { x: canvasPos.x + dx, y: canvasPos.y };
           return {
-            id, type: 'netNode' as const,
+            id,
+            type: 'netNode' as const,
             position: pos,
             ...(parent ? { parentNode: parent.id } : {}),
             data: { nodeType: 'veth-end', label, vethPairId: pairId },
           };
         };
-        setNodes((nds) => [...nds, makeVethNode(aId, `veth-${pairN}a`, -90), makeVethNode(bId, `veth-${pairN}b`, 90)]);
-        setEdges((eds) => [...eds, {
-          id: `veth-link-${pairId}`,
-          source: aId, sourceHandle: 'S-0-s',
-          target: bId, targetHandle: 'S-0-t',
-          data: { vethLink: true },
-          className: 'veth-link',
-          style: { stroke: '#0d9488', strokeWidth: 3, strokeDasharray: '6 3' },
-          label: '⛓',
-        }]);
+        setNodes((nds) => [
+          ...nds,
+          makeVethNode(aId, `veth-${pairN}a`, -90),
+          makeVethNode(bId, `veth-${pairN}b`, 90),
+        ]);
+        setEdges((eds) => [
+          ...eds,
+          {
+            id: `veth-link-${pairId}`,
+            source: aId,
+            sourceHandle: 'S-0-s',
+            target: bId,
+            targetHandle: 'S-0-t',
+            data: { vethLink: true },
+            className: 'veth-link',
+            style: { stroke: '#0d9488', strokeWidth: 3, strokeDasharray: '6 3' },
+            label: '⛓',
+          },
+        ]);
         return;
       }
 
@@ -304,13 +354,17 @@ export default function App() {
         const pairId = `netkit-pair-${pairN}`;
         const primaryId = `netkit-${pairN}-host`;
         const peerId = `netkit-${pairN}-peer`;
-        const parent = findContainerAt(canvasPos, nodes.filter((n) => n.type === 'containerNode'));
+        const parent = findContainerAt(
+          canvasPos,
+          nodes.filter((n) => n.type === 'containerNode')
+        );
         const makeNetkitNode = (id: string, label: string, nodeType: string, dx: number) => {
           const pos = parent
             ? { x: canvasPos.x - parent.position.x + dx, y: canvasPos.y - parent.position.y }
             : { x: canvasPos.x + dx, y: canvasPos.y };
           return {
-            id, type: 'netNode' as const,
+            id,
+            type: 'netNode' as const,
             position: pos,
             ...(parent ? { parentNode: parent.id } : {}),
             data: { nodeType, label, vethPairId: pairId },
@@ -319,17 +373,22 @@ export default function App() {
         setNodes((nds) => [
           ...nds,
           makeNetkitNode(primaryId, `netkit-${pairN}-host`, 'netkit-primary', -100),
-          makeNetkitNode(peerId,    `netkit-${pairN}-peer`, 'netkit-peer',    100),
+          makeNetkitNode(peerId, `netkit-${pairN}-peer`, 'netkit-peer', 100),
         ]);
-        setEdges((eds) => [...eds, {
-          id: `netkit-link-${pairId}`,
-          source: primaryId, sourceHandle: 'S-0-s',
-          target: peerId,    targetHandle: 'S-0-t',
-          data: { vethLink: true },
-          className: 'veth-link',
-          style: { stroke: '#0d9488', strokeWidth: 3, strokeDasharray: '6 3' },
-          label: '⛓',
-        }]);
+        setEdges((eds) => [
+          ...eds,
+          {
+            id: `netkit-link-${pairId}`,
+            source: primaryId,
+            sourceHandle: 'S-0-s',
+            target: peerId,
+            targetHandle: 'S-0-t',
+            data: { vethLink: true },
+            className: 'veth-link',
+            style: { stroke: '#0d9488', strokeWidth: 3, strokeDasharray: '6 3' },
+            label: '⛓',
+          },
+        ]);
         return;
       }
 
@@ -338,21 +397,34 @@ export default function App() {
       const label = nextLabel(nodeType);
 
       if (def instanceof ContainerComponentDef) {
-        setNodes((nds) => [...nds, {
-          id: label, type: 'containerNode', position: canvasPos, zIndex: -1,
-          style: { width: def.defaultWidth, height: def.defaultHeight },
-          data: { nodeType, label },
-        }]);
+        setNodes((nds) => [
+          ...nds,
+          {
+            id: label,
+            type: 'containerNode',
+            position: canvasPos,
+            zIndex: -1,
+            style: { width: def.defaultWidth, height: def.defaultHeight },
+            data: { nodeType, label },
+          },
+        ]);
       } else {
-        const parent = findContainerAt(canvasPos, nodes.filter((n) => n.type === 'containerNode'));
-        setNodes((nds) => [...nds, {
-          id: label, type: 'netNode',
-          position: parent
-            ? { x: canvasPos.x - parent.position.x, y: canvasPos.y - parent.position.y }
-            : canvasPos,
-          ...(parent ? { parentNode: parent.id } : {}),
-          data: { nodeType, label },
-        }]);
+        const parent = findContainerAt(
+          canvasPos,
+          nodes.filter((n) => n.type === 'containerNode')
+        );
+        setNodes((nds) => [
+          ...nds,
+          {
+            id: label,
+            type: 'netNode',
+            position: parent
+              ? { x: canvasPos.x - parent.position.x, y: canvasPos.y - parent.position.y }
+              : canvasPos,
+            ...(parent ? { parentNode: parent.id } : {}),
+            data: { nodeType, label },
+          },
+        ]);
       }
     },
     [nodes, rfInstance, setNodes, setEdges]
@@ -360,9 +432,15 @@ export default function App() {
 
   const onNodeDrag = useCallback(
     (_: React.MouseEvent, draggedNode: Node<NetNodeData>) => {
-      if (draggedNode.type === 'containerNode') { setHoverContainerId(null); return; }
+      if (draggedNode.type === 'containerNode') {
+        setHoverContainerId(null);
+        return;
+      }
       const absPos = absolutePosition(draggedNode);
-      const found = findContainerAt(absPos, nodes.filter((n) => n.type === 'containerNode' && n.id !== draggedNode.parentNode));
+      const found = findContainerAt(
+        absPos,
+        nodes.filter((n) => n.type === 'containerNode' && n.id !== draggedNode.parentNode)
+      );
       setHoverContainerId(found?.id ?? null);
     },
     [nodes]
@@ -373,16 +451,23 @@ export default function App() {
       setHoverContainerId(null);
       if (draggedNode.type === 'containerNode') return;
       const absPos = absolutePosition(draggedNode);
-      const newParent = findContainerAt(absPos, nodes.filter((n) => n.type === 'containerNode'));
+      const newParent = findContainerAt(
+        absPos,
+        nodes.filter((n) => n.type === 'containerNode')
+      );
       if (newParent?.id === draggedNode.parentNode) return;
-      setNodes((nds) => nds.map((n) => {
-        if (n.id !== draggedNode.id) return n;
-        if (newParent) return {
-          ...n, parentNode: newParent.id,
-          position: { x: absPos.x - newParent.position.x, y: absPos.y - newParent.position.y },
-        };
-        return { ...n, parentNode: undefined, position: absPos };
-      }));
+      setNodes((nds) =>
+        nds.map((n) => {
+          if (n.id !== draggedNode.id) return n;
+          if (newParent)
+            return {
+              ...n,
+              parentNode: newParent.id,
+              position: { x: absPos.x - newParent.position.x, y: absPos.y - newParent.position.y },
+            };
+          return { ...n, parentNode: undefined, position: absPos };
+        })
+      );
     },
     [nodes, setNodes]
   );
@@ -391,11 +476,15 @@ export default function App() {
     if (!selectedNode) return;
     const toDelete = new Set([selectedNode.id]);
     if (selectedNode.type === 'containerNode') {
-      nodes.forEach((n) => { if (n.parentNode === selectedNode.id) toDelete.add(n.id); });
+      nodes.forEach((n) => {
+        if (n.parentNode === selectedNode.id) toDelete.add(n.id);
+      });
     }
     const pairId = selectedNode.data.vethPairId;
     if (pairId) {
-      nodes.forEach((n) => { if (n.data.vethPairId === pairId) toDelete.add(n.id); });
+      nodes.forEach((n) => {
+        if (n.data.vethPairId === pairId) toDelete.add(n.id);
+      });
     }
     setNodes((nds) => nds.filter((n) => !toDelete.has(n.id)));
     setEdges((eds) => eds.filter((e) => !toDelete.has(e.source) && !toDelete.has(e.target)));
@@ -404,23 +493,29 @@ export default function App() {
 
   const updateLabel = (label: string) => {
     if (!selectedNode) return;
-    setNodes((nds) => nds.map((n) => n.id === selectedNode.id ? { ...n, data: { ...n.data, label } } : n));
-    setSelectedNode((p) => p ? { ...p, data: { ...p.data, label } } : null);
+    setNodes((nds) =>
+      nds.map((n) => (n.id === selectedNode.id ? { ...n, data: { ...n.data, label } } : n))
+    );
+    setSelectedNode((p) => (p ? { ...p, data: { ...p.data, label } } : null));
   };
 
   const updateConfig = (key: string, value: string) => {
     if (!selectedNode) return;
     const config = { ...selectedNode.data.config, [key]: value };
-    setNodes((nds) => nds.map((n) => n.id === selectedNode.id ? { ...n, data: { ...n.data, config } } : n));
-    setSelectedNode((p) => p ? { ...p, data: { ...p.data, config } } : null);
+    setNodes((nds) =>
+      nds.map((n) => (n.id === selectedNode.id ? { ...n, data: { ...n.data, config } } : n))
+    );
+    setSelectedNode((p) => (p ? { ...p, data: { ...p.data, config } } : null));
   };
 
   const updatePosition = (axis: 'x' | 'y', value: number) => {
     if (!selectedNode) return;
-    setNodes((nds) => nds.map((n) =>
-      n.id === selectedNode.id ? { ...n, position: { ...n.position, [axis]: value } } : n
-    ));
-    setSelectedNode((p) => p ? { ...p, position: { ...p.position, [axis]: value } } : null);
+    setNodes((nds) =>
+      nds.map((n) =>
+        n.id === selectedNode.id ? { ...n, position: { ...n.position, [axis]: value } } : n
+      )
+    );
+    setSelectedNode((p) => (p ? { ...p, position: { ...p.position, [axis]: value } } : null));
   };
 
   const loadSample = () => {
@@ -438,7 +533,9 @@ export default function App() {
   };
 
   const doExport = () => {
-    const blob = new Blob([JSON.stringify({ nodes, edges }, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify({ nodes, edges }, null, 2)], {
+      type: 'application/json',
+    });
     const url = URL.createObjectURL(blob);
     Object.assign(document.createElement('a'), { href: url, download: 'net-fiddle.json' }).click();
     URL.revokeObjectURL(url);
@@ -458,7 +555,9 @@ export default function App() {
           setNodes(parsed.nodes ?? []);
           setEdges(parsed.edges ?? []);
           setSelectedNode(null);
-        } catch { alert('Invalid JSON file'); }
+        } catch {
+          alert('Invalid JSON file');
+        }
       };
       reader.readAsText(file);
     };
@@ -473,7 +572,10 @@ export default function App() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if ((e.key === 'Delete' || e.key === 'Backspace') && document.activeElement?.tagName !== 'INPUT') {
+      if (
+        (e.key === 'Delete' || e.key === 'Backspace') &&
+        document.activeElement?.tagName !== 'INPUT'
+      ) {
         deleteSelected();
       }
       if (e.key === 'Escape') setSelectedNode(null);
@@ -494,10 +596,18 @@ export default function App() {
           <span className="component-count">{nodes.length} components</span>
         </div>
         <div className="header-actions">
-          <button className="btn btn-primary" onClick={loadSample}><FlaskConical size={14} /> Load Sample</button>
-          <button className="btn btn-secondary" onClick={doImport}><Upload size={14} /> Import</button>
-          <button className="btn btn-success" onClick={doExport}><Download size={14} /> Export</button>
-          <button className="btn btn-danger" onClick={clearAll}><Trash2 size={14} /> Clear All</button>
+          <button className="btn btn-primary" onClick={loadSample}>
+            <FlaskConical size={14} /> Load Sample
+          </button>
+          <button className="btn btn-secondary" onClick={doImport}>
+            <Upload size={14} /> Import
+          </button>
+          <button className="btn btn-success" onClick={doExport}>
+            <Download size={14} /> Export
+          </button>
+          <button className="btn btn-danger" onClick={clearAll}>
+            <Trash2 size={14} /> Clear All
+          </button>
         </div>
       </header>
 
@@ -509,8 +619,15 @@ export default function App() {
               {group.items.map((def) => {
                 const Icon = def.icon;
                 return (
-                  <div key={def.type} className="component-item" draggable onDragStart={(e) => onDragStart(e, def.type)}>
-                    <div className="component-icon"><Icon size={16} color={def.color} /></div>
+                  <div
+                    key={def.type}
+                    className="component-item"
+                    draggable
+                    onDragStart={(e) => onDragStart(e, def.type)}
+                  >
+                    <div className="component-icon">
+                      <Icon size={16} color={def.color} />
+                    </div>
                     {def.label}
                   </div>
                 );
@@ -523,8 +640,12 @@ export default function App() {
               <li>Drag components to canvas</li>
               <li>Drop onto namespace to nest</li>
               <li>Drag handle to connect</li>
-              <li><span className="flow-legend ingress" /> blue = ingress</li>
-              <li><span className="flow-legend egress" /> amber = egress</li>
+              <li>
+                <span className="flow-legend ingress" /> blue = ingress
+              </li>
+              <li>
+                <span className="flow-legend egress" /> amber = egress
+              </li>
               <li>Red edge = flow mismatch</li>
             </ul>
           </div>
@@ -565,7 +686,9 @@ export default function App() {
           </DragContext.Provider>
           {edgeTooltip && (
             <div className="edge-tooltip" style={{ left: edgeTooltip.x, top: edgeTooltip.y }}>
-              {edgeTooltip.messages.map((msg, i) => <div key={i}>{msg}</div>)}
+              {edgeTooltip.messages.map((msg, i) => (
+                <div key={i}>{msg}</div>
+              ))}
             </div>
           )}
         </div>
@@ -575,8 +698,12 @@ export default function App() {
             <div className="properties-header">
               <span className="properties-title">Properties</span>
               <div className="properties-header-actions">
-                <button className="icon-btn danger" title="Delete" onClick={deleteSelected}><Trash2 size={15} /></button>
-                <button className="icon-btn" title="Close" onClick={() => setSelectedNode(null)}><X size={15} /></button>
+                <button className="icon-btn danger" title="Delete" onClick={deleteSelected}>
+                  <Trash2 size={15} />
+                </button>
+                <button className="icon-btn" title="Close" onClick={() => setSelectedNode(null)}>
+                  <X size={15} />
+                </button>
               </div>
             </div>
 
@@ -587,7 +714,11 @@ export default function App() {
 
             <div className="prop-group">
               <span className="prop-label">Label</span>
-              <input className="prop-input" value={selectedNode.data.label} onChange={(e) => updateLabel(e.target.value)} />
+              <input
+                className="prop-input"
+                value={selectedNode.data.label}
+                onChange={(e) => updateLabel(e.target.value)}
+              />
             </div>
 
             {/* Config dropdowns (e.g. TC direction, qdisc type) */}
@@ -599,7 +730,11 @@ export default function App() {
                   value={selectedNode.data.config?.[field.key] ?? field.default}
                   onChange={(e) => updateConfig(field.key, e.target.value)}
                 >
-                  {field.options.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                  {field.options.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
                 </select>
               </div>
             ))}
@@ -610,11 +745,21 @@ export default function App() {
                 <div className="position-row">
                   <div className="position-field">
                     <label>X</label>
-                    <input className="prop-input" type="number" value={Math.round(selectedNode.position.x)} onChange={(e) => updatePosition('x', Number(e.target.value))} />
+                    <input
+                      className="prop-input"
+                      type="number"
+                      value={Math.round(selectedNode.position.x)}
+                      onChange={(e) => updatePosition('x', Number(e.target.value))}
+                    />
                   </div>
                   <div className="position-field">
                     <label>Y</label>
-                    <input className="prop-input" type="number" value={Math.round(selectedNode.position.y)} onChange={(e) => updatePosition('y', Number(e.target.value))} />
+                    <input
+                      className="prop-input"
+                      type="number"
+                      value={Math.round(selectedNode.position.y)}
+                      onChange={(e) => updatePosition('y', Number(e.target.value))}
+                    />
                   </div>
                 </div>
               </div>
@@ -626,11 +771,25 @@ export default function App() {
                 <div className="position-row">
                   <div className="position-field">
                     <label>W</label>
-                    <input className="prop-input" type="number" readOnly value={Math.round((selectedNode.width ?? (selectedNode.style?.width as number) ?? 0))} />
+                    <input
+                      className="prop-input"
+                      type="number"
+                      readOnly
+                      value={Math.round(
+                        selectedNode.width ?? (selectedNode.style?.width as number) ?? 0
+                      )}
+                    />
                   </div>
                   <div className="position-field">
                     <label>H</label>
-                    <input className="prop-input" type="number" readOnly value={Math.round((selectedNode.height ?? (selectedNode.style?.height as number) ?? 0))} />
+                    <input
+                      className="prop-input"
+                      type="number"
+                      readOnly
+                      value={Math.round(
+                        selectedNode.height ?? (selectedNode.style?.height as number) ?? 0
+                      )}
+                    />
                   </div>
                 </div>
               </div>
@@ -639,7 +798,9 @@ export default function App() {
             <div className="config-section">
               <div className="config-title">{selectedDef.configTitle}</div>
               <ul className="config-items">
-                {selectedDef.configItems.map((item) => <li key={item}>{item}</li>)}
+                {selectedDef.configItems.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
               </ul>
             </div>
           </aside>
@@ -648,16 +809,24 @@ export default function App() {
 
       <footer className="status-bar">
         <div className="status-shortcuts">
-          <div className="shortcut"><span className="kbd">Del</span> Delete selected</div>
-          <div className="shortcut"><span className="kbd">Drag</span> handle to connect</div>
-          <div className="shortcut"><span className="kbd">Esc</span> Deselect</div>
+          <div className="shortcut">
+            <span className="kbd">Del</span> Delete selected
+          </div>
+          <div className="shortcut">
+            <span className="kbd">Drag</span> handle to connect
+          </div>
+          <div className="shortcut">
+            <span className="kbd">Esc</span> Deselect
+          </div>
         </div>
         {violations.length > 0 && (
           <div className="status-violations" title={violations.map((v) => v.message).join('\n')}>
             ⚠ {violations.length} violation{violations.length > 1 ? 's' : ''}
           </div>
         )}
-        <button className="status-help" title="Help">?</button>
+        <button className="status-help" title="Help">
+          ?
+        </button>
       </footer>
     </div>
   );

@@ -65,8 +65,8 @@ describe('anchorHandleId', () => {
   });
 
   it('IDs are unique across sides and indices', () => {
-    const ids = (['N', 'E', 'S', 'W'] as CardinalSide[]).flatMap(
-      (side) => [0, 1, 2].map((i) => anchorHandleId(side, i))
+    const ids = (['N', 'E', 'S', 'W'] as CardinalSide[]).flatMap((side) =>
+      [0, 1, 2].map((i) => anchorHandleId(side, i))
     );
     expect(new Set(ids).size).toBe(ids.length);
   });
@@ -82,7 +82,13 @@ describe('resolveHandles', () => {
   it('single-spec single handle returns globalIndex 0 of 1', () => {
     const specs: AnchorSpec[] = [{ side: 'N', count: 1, flow: 'ingress' }];
     const [h] = resolveHandles(specs);
-    expect(h).toMatchObject({ id: 'N-0', side: 'N', flow: 'ingress', globalIndex: 0, totalOnSide: 1 });
+    expect(h).toMatchObject({
+      id: 'N-0',
+      side: 'N',
+      flow: 'ingress',
+      globalIndex: 0,
+      totalOnSide: 1,
+    });
   });
 
   it('two specs on same side are merged with global indices', () => {
@@ -116,7 +122,7 @@ describe('resolveHandles', () => {
   it('connector is passed through to resolved handles', () => {
     const specs: AnchorSpec[] = [
       { side: 'N', count: 1, flow: 'ingress', connector: 'in' },
-      { side: 'S', count: 1, flow: 'egress',  connector: 'out' },
+      { side: 'S', count: 1, flow: 'egress', connector: 'out' },
     ];
     const [n, s] = resolveHandles(specs);
     expect(n.connector).toBe('in');

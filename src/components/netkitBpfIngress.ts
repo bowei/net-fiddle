@@ -3,7 +3,7 @@ import { BpfBase } from './bpfBase';
 
 export class NetkitBpfIngressComponent extends BpfBase {
   readonly type = 'netkit-bpf-ingress';
-  readonly label = 'Netkit BPF Ingress';
+  readonly label = 'Netkit Ingress';
   readonly typeLabel = 'netkit-bpf-in';
   readonly icon = Zap;
   readonly configTitle = 'Netkit BPF Ingress';
@@ -14,7 +14,7 @@ export class NetkitBpfIngressComponent extends BpfBase {
     'TC_ACT_OK / SHOT / REDIRECT',
   ] as const;
   readonly anchors = [
-    { side: 'N', count: 1, flow: 'ingress' as const, connector: 'in'  as const },
+    { side: 'N', count: 1, flow: 'ingress' as const, connector: 'in' as const },
     { side: 'S', count: 1, flow: 'ingress' as const, connector: 'out' as const },
   ] as const;
 }

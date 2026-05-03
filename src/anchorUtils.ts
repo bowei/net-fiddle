@@ -42,7 +42,7 @@ export function anchorHandleId(side: CardinalSide, globalIndex: number): string 
 /** Returns the color for a handle based on its flow direction. */
 export function anchorFlowColor(flow: AnchorFlow, fallback: string): string {
   if (flow === 'ingress') return '#3b82f6'; // blue
-  if (flow === 'egress') return '#f59e0b';  // amber
+  if (flow === 'egress') return '#f59e0b'; // amber
   return fallback;
 }
 
@@ -77,7 +77,14 @@ export function resolveHandles(anchors: readonly AnchorSpec[]): ResolvedHandle[]
   for (const [side, handles] of bySide) {
     const total = handles.length;
     handles.forEach(({ flow, connector }, globalIndex) => {
-      result.push({ id: anchorHandleId(side, globalIndex), side, flow, connector, globalIndex, totalOnSide: total });
+      result.push({
+        id: anchorHandleId(side, globalIndex),
+        side,
+        flow,
+        connector,
+        globalIndex,
+        totalOnSide: total,
+      });
     });
   }
   return result;

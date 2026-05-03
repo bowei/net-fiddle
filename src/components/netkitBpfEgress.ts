@@ -3,7 +3,7 @@ import { BpfBase } from './bpfBase';
 
 export class NetkitBpfEgressComponent extends BpfBase {
   readonly type = 'netkit-bpf-egress';
-  readonly label = 'Netkit BPF Egress';
+  readonly label = 'Netkit Egress';
   readonly typeLabel = 'netkit-bpf-out';
   readonly icon = Zap;
   readonly configTitle = 'Netkit BPF Egress';
@@ -14,7 +14,7 @@ export class NetkitBpfEgressComponent extends BpfBase {
     'TC_ACT_OK / SHOT / REDIRECT',
   ] as const;
   readonly anchors = [
-    { side: 'N', count: 1, flow: 'egress' as const, connector: 'in'  as const },
+    { side: 'N', count: 1, flow: 'egress' as const, connector: 'in' as const },
     { side: 'S', count: 1, flow: 'egress' as const, connector: 'out' as const },
   ] as const;
 }

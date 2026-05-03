@@ -3,7 +3,7 @@ import { BpfBase } from './bpfBase';
 
 export class XdpProgramComponent extends BpfBase {
   readonly type = 'xdp-program';
-  readonly label = 'XDP Program';
+  readonly label = 'XDP';
   readonly typeLabel = 'xdp';
   readonly icon = Zap;
   readonly configTitle = 'XDP Config';

@@ -1,15 +1,15 @@
-import { Sliders } from 'lucide-react';
+import { Layers } from 'lucide-react';
 import { ComponentDef, type AnchorSpec } from './base';
 
 export class TrafficControlComponent extends ComponentDef {
   readonly type = 'traffic-control';
-  readonly label = 'Traffic Control';
+  readonly label = 'tc ingress';
   readonly typeLabel = 'tc';
   readonly color = '#d97706';
   readonly bgColor = '#fffbeb';
   readonly borderColor = '#fcd34d';
-  readonly icon = Sliders;
-  readonly configTitle = 'TC Config';
+  readonly icon = Layers;
+  readonly configTitle = 'tc ingress';
   readonly configItems = [
     'clsact qdisc (ingress or egress)',
     'BPF_PROG_TYPE_SCHED_CLS classifiers',

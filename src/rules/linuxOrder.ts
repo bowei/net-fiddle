@@ -7,33 +7,49 @@ function ingressOrder(nodeType: string, config?: Record<string, string>): number
     case 'interface':
     case 'veth-end':
     case 'netkit-primary':
-    case 'netkit-peer':          return 0;
-    case 'xdp-program':          return 1;
+    case 'netkit-peer':
+      return 0;
+    case 'xdp-program':
+      return 1;
     case 'traffic-control':
-    case 'tc-bpf-program':       return config?.direction === 'ingress' ? 2 : null;
-    case 'nftables-prerouting':  return 3;
-    case 'routing-table':        return 4;
+    case 'tc-bpf-program':
+      return config?.direction === 'ingress' ? 2 : null;
+    case 'nftables-prerouting':
+      return 3;
+    case 'routing-table':
+      return 4;
     case 'nftables-input':
-    case 'nftables-forward':     return 5;
-    case 'socket':               return 6;
-    default:                     return null;
+    case 'nftables-forward':
+      return 5;
+    case 'socket':
+      return 6;
+    default:
+      return null;
   }
 }
 
 function egressOrder(nodeType: string, config?: Record<string, string>): number | null {
   switch (nodeType) {
-    case 'socket':                  return 0;
-    case 'nftables-output':         return 1;
-    case 'nftables-postrouting':    return 2;
+    case 'socket':
+      return 0;
+    case 'nftables-output':
+      return 1;
+    case 'nftables-postrouting':
+      return 2;
     case 'traffic-control':
-    case 'tc-bpf-program':          return config?.direction === 'egress' ? 3 : null;
-    case 'sched-bpf':               return 3;
-    case 'qdisc':                   return 4;
+    case 'tc-bpf-program':
+      return config?.direction === 'egress' ? 3 : null;
+    case 'sched-bpf':
+      return 3;
+    case 'qdisc':
+      return 4;
     case 'interface':
     case 'veth-end':
     case 'netkit-primary':
-    case 'netkit-peer':             return 5;
-    default:                        return null;
+    case 'netkit-peer':
+      return 5;
+    default:
+      return null;
   }
 }
 
@@ -50,8 +66,7 @@ export const linuxOrderRule: GraphRule = {
       if (!flows) continue;
 
       const flow: AnchorFlow =
-        flows.src !== 'any' ? flows.src :
-        flows.tgt !== 'any' ? flows.tgt : 'any';
+        flows.src !== 'any' ? flows.src : flows.tgt !== 'any' ? flows.tgt : 'any';
       if (flow === 'any') continue;
 
       const srcNode = nodeById.get(edge.source);

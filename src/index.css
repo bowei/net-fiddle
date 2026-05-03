@@ -1,10 +1,14 @@
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-html, body, #root {
+html,
+body,
+#root {
   height: 100%;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: 14px;
@@ -61,16 +65,34 @@ html, body, #root {
   font-weight: 500;
   cursor: pointer;
   border: none;
-  transition: background 0.15s, opacity 0.15s;
+  transition:
+    background 0.15s,
+    opacity 0.15s;
 }
 
-.btn:hover { opacity: 0.85; }
-.btn:active { opacity: 0.7; }
+.btn:hover {
+  opacity: 0.85;
+}
+.btn:active {
+  opacity: 0.7;
+}
 
-.btn-primary { background: #6366f1; color: white; }
-.btn-secondary { background: #334155; color: white; }
-.btn-success { background: #10b981; color: white; }
-.btn-danger { background: #ef4444; color: white; }
+.btn-primary {
+  background: #6366f1;
+  color: white;
+}
+.btn-secondary {
+  background: #334155;
+  color: white;
+}
+.btn-success {
+  background: #10b981;
+  color: white;
+}
+.btn-danger {
+  background: #ef4444;
+  color: white;
+}
 
 /* Body */
 .body {
@@ -130,7 +152,9 @@ html, body, #root {
   margin-bottom: 6px;
   font-size: 13px;
   font-weight: 500;
-  transition: background 0.15s, border-color 0.15s;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
   user-select: none;
 }
 
@@ -139,7 +163,9 @@ html, body, #root {
   border-color: #cbd5e1;
 }
 
-.component-item:active { cursor: grabbing; }
+.component-item:active {
+  cursor: grabbing;
+}
 
 .component-icon {
   width: 20px;
@@ -198,8 +224,12 @@ html, body, #root {
   flex-shrink: 0;
 }
 
-.flow-legend.ingress { background: #3b82f6; }
-.flow-legend.egress  { background: #f59e0b; }
+.flow-legend.ingress {
+  background: #3b82f6;
+}
+.flow-legend.egress {
+  background: #f59e0b;
+}
 
 /* Canvas */
 .canvas-wrapper {
@@ -225,16 +255,18 @@ html, body, #root {
   background: white;
   min-width: 130px;
   cursor: pointer;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
   transition: box-shadow 0.15s;
 }
 
 .custom-node:hover {
-  box-shadow: 0 2px 8px rgba(0,0,0,0.14);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.14);
 }
 
 .custom-node.selected {
-  box-shadow: 0 0 0 2px currentColor, 0 2px 8px rgba(0,0,0,0.14);
+  box-shadow:
+    0 0 0 2px currentColor,
+    0 2px 8px rgba(0, 0, 0, 0.14);
 }
 
 .node-header {
@@ -310,8 +342,13 @@ html, body, #root {
   transition: background 0.15s;
 }
 
-.icon-btn:hover { background: #f1f5f9; }
-.icon-btn.danger:hover { background: #fee2e2; color: #ef4444; }
+.icon-btn:hover {
+  background: #f1f5f9;
+}
+.icon-btn.danger:hover {
+  background: #fee2e2;
+  color: #ef4444;
+}
 
 .prop-group {
   display: flex;
@@ -410,7 +447,10 @@ html, body, #root {
   border-radius: 12px;
   display: flex;
   flex-direction: column;
-  transition: background-color 0.15s, border-color 0.15s, box-shadow 0.15s;
+  transition:
+    background-color 0.15s,
+    border-color 0.15s,
+    box-shadow 0.15s;
 }
 
 .container-node.selected {

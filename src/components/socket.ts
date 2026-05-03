@@ -19,7 +19,7 @@ export class SocketComponent extends ComponentDef {
   // S: ingress packets arrive from below after nft input.
   readonly anchors = [
     { side: 'S', count: 1, flow: 'ingress' as const, connector: 'in' as const },
-    { side: 'S', count: 1, flow: 'egress' as const,  connector: 'out' as const },
+    { side: 'S', count: 1, flow: 'egress' as const, connector: 'out' as const },
   ] as const;
 }
 

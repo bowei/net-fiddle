@@ -1,4 +1,4 @@
-.PHONY: build test typecheck dev clean
+.PHONY: build test typecheck dev format format-check clean
 
 build: node_modules
 	npm run build
@@ -15,6 +15,12 @@ dev: node_modules
 node_modules: package.json
 	npm install
 	@touch node_modules
+
+format: node_modules
+	npm run format
+
+format-check: node_modules
+	npm run format:check
 
 clean:
 	rm -rf dist node_modules
