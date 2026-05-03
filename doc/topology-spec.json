@@ -1,0 +1,237 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "net-fiddle-topology",
+  "title": "Net Fiddle Topology",
+  "description": "Serialised format for a Net Fiddle network topology diagram. Produced by Export and consumed by Import. The top-level object contains two arrays: nodes (canvas elements) and edges (connections between them).",
+  "type": "object",
+  "required": ["nodes", "edges"],
+  "additionalProperties": false,
+  "properties": {
+    "nodes": {
+      "type": "array",
+      "description": "All nodes on the canvas. Must be ordered so that container nodes appear before any of their children (ReactFlow requirement).",
+      "items": {
+        "oneOf": [
+          { "$ref": "#/$defs/containerNode" },
+          { "$ref": "#/$defs/netNode" }
+        ]
+      }
+    },
+    "edges": {
+      "type": "array",
+      "description": "All connections between nodes.",
+      "items": {
+        "oneOf": [
+          { "$ref": "#/$defs/regularEdge" },
+          { "$ref": "#/$defs/pairLinkEdge" }
+        ]
+      }
+    }
+  },
+
+  "$defs": {
+
+    "nodeId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Unique identifier for a node within this topology."
+    },
+
+    "position": {
+      "type": "object",
+      "required": ["x", "y"],
+      "additionalProperties": false,
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" }
+      }
+    },
+
+    "handleId": {
+      "type": "string",
+      "pattern": "^[NESW]-[0-9]+-[st]$",
+      "description": "Identifies a specific connector point. Format: {side}-{index}-{connector}. Side is N (north), E (east), S (south), or W (west). Index is 0-based within that side. Connector is 's' for source (solid dot) or 't' for target (hollow dot). Example: 'N-0-s' is the first source handle on the north side."
+    },
+
+    "containerNode": {
+      "description": "A resizable namespace box. Other nodes can be nested inside it by setting their parentNode to this node's id.",
+      "type": "object",
+      "required": ["id", "type", "position", "data"],
+      "properties": {
+        "id":       { "$ref": "#/$defs/nodeId" },
+        "type":     { "const": "containerNode" },
+        "position": {
+          "$ref": "#/$defs/position",
+          "description": "Top-left corner of the box in absolute canvas coordinates."
+        },
+        "zIndex": {
+          "type": "integer",
+          "description": "Render order. Use -1 to place the container behind its children (standard value for namespaces)."
+        },
+        "style": {
+          "type": "object",
+          "description": "Dimensions of the container box.",
+          "properties": {
+            "width":  { "type": "number", "exclusiveMinimum": 0 },
+            "height": { "type": "number", "exclusiveMinimum": 0 }
+          }
+        },
+        "data": {
+          "type": "object",
+          "required": ["nodeType", "label"],
+          "additionalProperties": false,
+          "properties": {
+            "nodeType": {
+              "const": "namespace",
+              "description": "The only supported container type."
+            },
+            "label": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Display name shown in the container title bar."
+            }
+          }
+        }
+      }
+    },
+
+    "netNode": {
+      "description": "A plain network component node (not a container).",
+      "type": "object",
+      "required": ["id", "type", "position", "data"],
+      "properties": {
+        "id":       { "$ref": "#/$defs/nodeId" },
+        "type":     { "const": "netNode" },
+        "position": {
+          "$ref": "#/$defs/position",
+          "description": "Position relative to the parentNode's top-left corner if parentNode is set; absolute canvas coordinates otherwise."
+        },
+        "parentNode": {
+          "$ref": "#/$defs/nodeId",
+          "description": "ID of the containerNode this node is nested inside. Omit for top-level nodes."
+        },
+        "data": { "$ref": "#/$defs/netNodeData" }
+      }
+    },
+
+    "netNodeData": {
+      "type": "object",
+      "required": ["nodeType", "label"],
+      "additionalProperties": false,
+      "properties": {
+
+        "nodeType": {
+          "type": "string",
+          "description": "Component type key. Determines which connector anchors and validation rules apply.",
+          "enum": [
+            "interface",
+            "veth-end",
+            "netkit-primary",
+            "netkit-peer",
+            "socket",
+            "network",
+            "routing-table",
+            "nftables-prerouting",
+            "nftables-input",
+            "nftables-forward",
+            "nftables-output",
+            "nftables-postrouting",
+            "traffic-control",
+            "qdisc",
+            "xdp-program",
+            "tc-bpf-program",
+            "sched-bpf",
+            "netkit-bpf-ingress",
+            "netkit-bpf-egress"
+          ]
+        },
+
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-readable name shown on the node card."
+        },
+
+        "config": { "$ref": "#/$defs/nodeConfig" },
+
+        "vethPairId": {
+          "type": "string",
+          "description": "Shared pair identifier. Both ends of a veth or netkit pair carry the same value. Used to co-delete both ends and to identify the permanent pair-link edge. Required on veth-end, netkit-primary, and netkit-peer nodes."
+        }
+      }
+    },
+
+    "nodeConfig": {
+      "description": "Optional runtime configuration. Only the fields relevant to the node's nodeType are used; all others are ignored.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "direction": {
+          "type": "string",
+          "enum": ["ingress", "egress"],
+          "description": "Applies to nodeType 'traffic-control'. Controls which flow direction the TC hook handles and which ordering step it occupies. Defaults to 'ingress' when omitted."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["fq", "htb", "fq_codel", "tbf", "pfifo_fast"],
+          "description": "Applies to nodeType 'qdisc'. Selects the queuing discipline algorithm displayed in the properties panel. Defaults to 'fq' when omitted."
+        }
+      }
+    },
+
+    "regularEdge": {
+      "description": "A user-drawn connection between two node handles.",
+      "type": "object",
+      "required": ["id", "source", "sourceHandle", "target", "targetHandle"],
+      "additionalProperties": false,
+      "properties": {
+        "id":           { "type": "string", "minLength": 1 },
+        "source":       { "$ref": "#/$defs/nodeId", "description": "ID of the source node." },
+        "sourceHandle": { "$ref": "#/$defs/handleId", "description": "Handle on the source node (must be a source handle, suffix '-s')." },
+        "target":       { "$ref": "#/$defs/nodeId", "description": "ID of the target node." },
+        "targetHandle": { "$ref": "#/$defs/handleId", "description": "Handle on the target node (must be a target handle, suffix '-t')." }
+      }
+    },
+
+    "pairLinkEdge": {
+      "description": "The permanent virtual wire connecting both ends of a veth or netkit pair. Created automatically when a pair is dropped; cannot be reconnected or deleted independently.",
+      "type": "object",
+      "required": ["id", "source", "sourceHandle", "target", "targetHandle", "data", "className"],
+      "properties": {
+        "id":           { "type": "string", "minLength": 1 },
+        "source":       { "$ref": "#/$defs/nodeId" },
+        "sourceHandle": { "$ref": "#/$defs/handleId" },
+        "target":       { "$ref": "#/$defs/nodeId" },
+        "targetHandle": { "$ref": "#/$defs/handleId" },
+        "data": {
+          "type": "object",
+          "required": ["vethLink"],
+          "properties": {
+            "vethLink": {
+              "const": true,
+              "description": "Flag that marks this edge as a permanent pair link. Causes the app to skip reconnect gestures and validation rules for this edge."
+            }
+          }
+        },
+        "className": {
+          "const": "veth-link",
+          "description": "CSS class applied to hide the edge's reconnect drag handles."
+        },
+        "style": {
+          "type": "object",
+          "description": "Visual style for the dashed pair-link line.",
+          "properties": {
+            "stroke":          { "type": "string" },
+            "strokeWidth":     { "type": "number" },
+            "strokeDasharray": { "type": "string" }
+          }
+        },
+        "label": {
+          "type": "string",
+          "description": "Decorative label on the edge. The app uses '⛓' for pair links."
+        }
+      }
+    }
+
+  }
+}
