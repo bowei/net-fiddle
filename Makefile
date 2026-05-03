@@ -1,4 +1,4 @@
-.PHONY: build test typecheck dev format format-check clean \
+.PHONY: build test typecheck dev format format-check clean publish \
         scanner-build scanner-test testdaemon-build
 
 build: node_modules
@@ -31,6 +31,9 @@ scanner-test:
 
 testdaemon-build:
 	cd scanner && CGO_ENABLED=0 go build -o testdaemon ./cmd/testdaemon
+
+publish: build
+	cp -r dist/. docs/
 
 clean:
 	rm -rf dist node_modules
