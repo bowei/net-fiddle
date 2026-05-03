@@ -99,11 +99,12 @@ function CustomNode({ id, data, selected }: NodeProps<NetNodeData>) {
     dynTotal: bySide.get(h.dynSide)!.length,
   }));
 
-  // Tell ReactFlow to re-measure handle DOM positions whenever side assignments change.
-  // Without this the edge-routing store retains stale coordinates.
+  // Tell ReactFlow to re-measure handle DOM positions whenever side OR position-along-side changes.
+  // dynIdx/dynTotal affect the CSS left/top %, which moves the dot without remounting the Handle,
+  // so we must also retrigger here — not just when dynSide changes.
   const updateNodeInternals = useUpdateNodeInternals();
-  const dynSidesKey = positioned.map((h) => `${h.id}:${h.dynSide}`).join(',');
-  useEffect(() => { updateNodeInternals(id); }, [dynSidesKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const dynKey = positioned.map((h) => `${h.id}:${h.dynSide}:${h.dynIdx}:${h.dynTotal}`).join(',');
+  useEffect(() => { updateNodeInternals(id); }, [dynKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div
