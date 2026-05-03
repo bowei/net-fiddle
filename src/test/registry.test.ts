@@ -8,6 +8,9 @@ import { trafficControl } from '../components/trafficControl';
 import { xdpProgram } from '../components/xdpProgram';
 import { tcBpfProgram } from '../components/tcBpfProgram';
 import { schedBpf } from '../components/schedBpf';
+import { netkitPrimary } from '../components/netkitPrimary';
+import { netkitPeer } from '../components/netkitPeer';
+import { netkitBpf } from '../components/netkitBpf';
 import { nftablesPrerouting } from '../components/nftablesPrerouting';
 import { nftablesInput } from '../components/nftablesInput';
 import { nftablesForward } from '../components/nftablesForward';
@@ -20,13 +23,14 @@ import { vethEnd } from '../components/vethEnd';
 // All ComponentDefs including registry-only ones (not in sidebar, e.g. veth-end).
 const ALL_DEFS = [
   namespace, netInterface, routingTable, trafficControl,
-  xdpProgram, tcBpfProgram, schedBpf,
+  xdpProgram, tcBpfProgram, schedBpf, netkitBpf,
   nftablesPrerouting, nftablesInput, nftablesForward, nftablesOutput, nftablesPostrouting,
-  qdisc, socket, vethEnd,
+  qdisc, socket, vethEnd, netkitPrimary, netkitPeer,
 ];
 
 // ComponentDefs that appear in the sidebar (registry-only types excluded).
-const SIDEBAR_DEFS = ALL_DEFS.filter((d) => d !== vethEnd);
+const REGISTRY_ONLY: ComponentDef[] = [vethEnd, netkitPrimary, netkitPeer];
+const SIDEBAR_DEFS = ALL_DEFS.filter((d) => !REGISTRY_ONLY.includes(d));
 
 const CONTAINER_DEFS = ALL_DEFS.filter((d) => d instanceof ContainerComponentDef);
 const NODE_DEFS = ALL_DEFS.filter((d) => !(d instanceof ContainerComponentDef));

@@ -5,7 +5,9 @@ import type { AnchorFlow } from '../components/base';
 function ingressOrder(nodeType: string, config?: Record<string, string>): number | null {
   switch (nodeType) {
     case 'interface':
-    case 'veth-end':             return 0;
+    case 'veth-end':
+    case 'netkit-primary':
+    case 'netkit-peer':          return 0;
     case 'xdp-program':          return 1;
     case 'traffic-control':
     case 'tc-bpf-program':       return config?.direction === 'ingress' ? 2 : null;
@@ -28,7 +30,9 @@ function egressOrder(nodeType: string, config?: Record<string, string>): number 
     case 'sched-bpf':               return 3;
     case 'qdisc':                   return 4;
     case 'interface':
-    case 'veth-end':                return 5;
+    case 'veth-end':
+    case 'netkit-primary':
+    case 'netkit-peer':             return 5;
     default:                        return null;
   }
 }

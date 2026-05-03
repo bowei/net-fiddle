@@ -298,6 +298,41 @@ export default function App() {
         return;
       }
 
+      if (nodeType === 'netkit') {
+        const pairN = (counters.current['netkit'] ?? 0) + 1;
+        counters.current['netkit'] = pairN;
+        const pairId = `netkit-pair-${pairN}`;
+        const primaryId = `netkit-${pairN}-host`;
+        const peerId = `netkit-${pairN}-peer`;
+        const parent = findContainerAt(canvasPos, nodes.filter((n) => n.type === 'containerNode'));
+        const makeNetkitNode = (id: string, label: string, nodeType: string, dx: number) => {
+          const pos = parent
+            ? { x: canvasPos.x - parent.position.x + dx, y: canvasPos.y - parent.position.y }
+            : { x: canvasPos.x + dx, y: canvasPos.y };
+          return {
+            id, type: 'netNode' as const,
+            position: pos,
+            ...(parent ? { parentNode: parent.id } : {}),
+            data: { nodeType, label, vethPairId: pairId },
+          };
+        };
+        setNodes((nds) => [
+          ...nds,
+          makeNetkitNode(primaryId, `netkit-${pairN}-host`, 'netkit-primary', -100),
+          makeNetkitNode(peerId,    `netkit-${pairN}-peer`, 'netkit-peer',    100),
+        ]);
+        setEdges((eds) => [...eds, {
+          id: `netkit-link-${pairId}`,
+          source: primaryId, sourceHandle: 'S-0-s',
+          target: peerId,    targetHandle: 'S-0-t',
+          data: { vethLink: true },
+          className: 'veth-link',
+          style: { stroke: '#0d9488', strokeWidth: 3, strokeDasharray: '6 3' },
+          label: '⛓',
+        }]);
+        return;
+      }
+
       const def = REGISTRY.get(nodeType);
       if (!def) return;
       const label = nextLabel(nodeType);

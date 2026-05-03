@@ -15,6 +15,10 @@ import { qdisc } from './qdisc';
 import { socket } from './socket';
 import { vethEnd } from './vethEnd';
 import { vethPair, type SidebarTemplate } from './vethPair';
+import { netkitPrimary } from './netkitPrimary';
+import { netkitPeer } from './netkitPeer';
+import { netkitBpf } from './netkitBpf';
+import { netkitPair } from './netkitPair';
 
 export type { SidebarTemplate };
 
@@ -34,7 +38,7 @@ export interface SidebarGroup {
 export const SIDEBAR_GROUPS: readonly SidebarGroup[] = [
   {
     label: 'Network',
-    items: [namespace, netInterface, socket, routingTable, qdisc, vethPair],
+    items: [namespace, netInterface, socket, routingTable, qdisc, vethPair, netkitPair],
   },
   {
     label: 'nftables',
@@ -48,7 +52,7 @@ export const SIDEBAR_GROUPS: readonly SidebarGroup[] = [
   },
   {
     label: 'BPF / TC',
-    items: [xdpProgram, trafficControl, tcBpfProgram, schedBpf],
+    items: [xdpProgram, trafficControl, tcBpfProgram, schedBpf, netkitBpf],
   },
 ];
 
@@ -59,7 +63,7 @@ export const SIDEBAR_ITEMS: readonly ComponentDef[] = SIDEBAR_GROUPS.flatMap((g)
 
 /** O(1) lookup by component type string. Includes veth-end (not in sidebar) for canvas rendering. */
 export const REGISTRY: ReadonlyMap<string, ComponentDef> = new Map(
-  [...SIDEBAR_ITEMS, vethEnd].map((c) => [c.type, c])
+  [...SIDEBAR_ITEMS, vethEnd, netkitPrimary, netkitPeer].map((c) => [c.type, c])
 );
 
 export type { ComponentDef };
