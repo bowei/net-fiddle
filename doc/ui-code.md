@@ -35,7 +35,8 @@ Root component. Owns all state and event wiring.
 The drop type comes from `dataTransfer` key `application/netfiddle`, set in `onDragStart`. Two code paths:
 
 1. `nodeType === 'veth'` — special case: creates two `veth-end` nodes offset ±90px from the drop point, plus a permanent dashed edge (`data.vethLink: true`). Both nodes share a `vethPairId` so they can be co-deleted.
-2. Everything else — looks up the def in REGISTRY, creates either a `containerNode` or `netNode`. If dropped inside a container's bounding box (`findContainerAt`), sets `parentNode` and converts the position to container-relative coordinates.
+2. `nodeType === 'netkit'` — similar special case: creates `netkit-primary` and `netkit-peer` nodes offset ±90px apart, plus a permanent dashed edge. Both share a `vethPairId` for co-deletion (the same field is reused since the behavior is identical).
+3. Everything else — looks up the def in REGISTRY, creates either a `containerNode` or `netNode`. If dropped inside a container's bounding box (`findContainerAt`), sets `parentNode` and converts the position to container-relative coordinates.
 
 **Container collision (`findContainerAt`):**
 Simple AABB test against all `containerNode` nodes. Uses `node.width/height` or falls back to `style.width/height`.
@@ -83,7 +84,7 @@ Each anchor produces up to two ReactFlow `Handle` components:
 
 The React key includes `dynSide` (e.g. `"N-0-t"` becomes `"S-0-t"` when the handle migrates). This forces React to remount the Handle, which forces ReactFlow to re-register its DOM position.
 
-**`useUpdateNodeInternals()`** is called in a `useEffect` whenever `dynSidesKey` changes. This is necessary because handle DOM positions change without the node resizing, so ReactFlow's ResizeObserver never fires — without this call the edge routing store retains stale coordinates.
+**`useUpdateNodeInternals()`** is called in a `useEffect` whenever `dynKey` changes. This is necessary because handle DOM positions change without the node resizing, so ReactFlow's ResizeObserver never fires — without this call the edge routing store retains stale coordinates.
 
 ---
 
@@ -139,7 +140,7 @@ Two abstract base classes:
 
 Defines `SIDEBAR_GROUPS` (the rendered sidebar), `SIDEBAR_ITEMS` (all ComponentDefs, excluding SidebarTemplates), and `REGISTRY` (the lookup map).
 
-`vethEnd` is in `REGISTRY` but not in `SIDEBAR_ITEMS` — it's only created programmatically when a veth pair is dropped. `vethPair` is a `SidebarTemplate` (has `type`/`label`/`color`/`icon` but no anchors) — it appears in the sidebar but is not a ComponentDef and does not enter the registry.
+`vethEnd`, `netkitPrimary`, and `netkitPeer` are in `REGISTRY` but not in `SIDEBAR_ITEMS` — they are created programmatically when the corresponding pair template is dropped. `vethPair` and `netkitPair` are `SidebarTemplate` objects (have `type`/`label`/`color`/`icon` but no anchors) — they appear in the sidebar but are not ComponentDefs and do not enter the registry.
 
 To add a new component type: create a class file extending `ComponentDef`, export a singleton, add it to the `COMPONENTS` array in `registry.ts`.
 
@@ -155,6 +156,9 @@ See the extensible rule system:
 | `utils.ts` | `resolveEdgeHandleFlows(edge, nodes)` — resolves both handle flows for an edge; returns `null` if either side is unresolvable |
 | `flowMismatch.ts` | Flags edges where source and target have incompatible non-`'any'` flows |
 | `linuxOrder.ts` | Validates that connected components follow the Linux kernel's actual packet processing order (separate tables for ingress and egress; TC/TC-BPF position is config-dependent) |
+| `netkitBpfPlacement.ts` | Netkit BPF ingress/egress nodes may only connect to netkit-primary, netkit-peer, or xdp-program |
+| `tcBpfPlacement.ts` | tc-bpf-program and sched-bpf nodes may only connect to traffic-control nodes |
+| `xdpPlacement.ts` | xdp-program source must be an interface, veth-end, or netkit node |
 | `index.ts` | `ALL_RULES` export; re-exports everything |
 
 Violations are computed in `App.tsx` via `useMemo` and used to color edges red and show a count badge in the status bar. `vethLink` edges are skipped by all rules.

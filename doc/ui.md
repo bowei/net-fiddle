@@ -34,6 +34,10 @@ A namespace is a resizable container box. Drag its border handles to resize it. 
 
 Dragging a **Veth Pair** from the sidebar drops two linked veth-end nodes side by side. They are permanently connected by a dashed edge representing the virtual wire between the two ends. This link cannot be removed or reconnected — to remove it, delete one of the veth-end nodes (both ends are deleted together).
 
+### Netkit pairs
+
+Dragging a **Netkit Pair** drops two linked nodes: a **netkit-primary** (host side) and a **netkit-peer** (container side), permanently connected by a dashed edge. Netkit nodes have BPF hook connectors on their sides (ingress on the west face, egress on the east face) for attaching **Netkit BPF Ingress** and **Netkit BPF Egress** programs. Deleting either end deletes both.
+
 ### Connecting components
 
 Drag from any connector dot on a node to a connector dot on another node to create an edge. Edges can be reconnected by dragging from the midpoint of an existing edge to a new target. Dragging an edge off into empty space removes it.
@@ -96,7 +100,7 @@ Edges are colored to show flow direction and validation status:
 | Amber | Egress traffic (process → wire) |
 | Red + ⚠ | Validation error |
 
-Two kinds of errors are detected:
+Five kinds of errors are detected:
 
 **Flow mismatch** — the source connector is typed for one direction (e.g. egress) but the target connector expects the other (e.g. ingress). This catches connecting components in a direction that makes no physical sense.
 
@@ -104,13 +108,19 @@ Two kinds of errors are detected:
 
 The expected Linux ordering is:
 
-**Ingress:** interface / veth-end → XDP → TC ingress → nftables prerouting → routing table → nftables input / forward → socket
+**Ingress:** interface / veth-end / netkit → XDP → TC ingress / TC-BPF → nftables prerouting → routing table → nftables input / forward → socket
 
-**Egress:** socket → nftables output → nftables postrouting → TC egress → qdisc → interface / veth-end
+**Egress:** socket → nftables output → nftables postrouting → TC egress / TC-BPF / Sched-BPF → qdisc → interface / veth-end / netkit
 
 TC and TC-BPF position depends on the configured direction (ingress or egress).
 
-When violations exist, a red badge in the status bar shows the count. Hovering over it shows all violation messages.
+**BPF placement — netkit:** Netkit BPF ingress/egress programs may only attach to a netkit-primary, netkit-peer, or XDP program.
+
+**BPF placement — TC:** TC-BPF and Sched-BPF programs may only attach to a traffic-control node.
+
+**BPF placement — XDP:** An XDP program's source must be an interface, veth-end, or netkit node.
+
+When violations exist, a red badge in the status bar shows the count. Hovering over a red edge shows the specific violation message in a tooltip.
 
 ---
 

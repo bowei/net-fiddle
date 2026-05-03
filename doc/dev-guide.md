@@ -17,6 +17,8 @@ All commands are available via `make` or directly via `npm run`.
 | Run tests (once) | `make test` | `npm run test` |
 | Watch tests | — | `npm run test:watch` |
 | Type-check only | `make typecheck` | `npm run typecheck` |
+| Format source | `make format` | `npm run format` |
+| Check formatting | `make format-check` | `npm run format:check` |
 | Delete dist + node_modules | `make clean` | — |
 
 The dev server runs at **http://localhost:5173** with hot-module replacement.
@@ -79,12 +81,14 @@ When adding a new component type, update `registry.test.ts`:
 
 ## Formatting and style
 
-There is no formatter (Prettier) configured. The project relies on TypeScript's compiler errors to enforce correctness. Style conventions in use:
+**Prettier** is configured (`.prettierrc`). Settings: single quotes, semicolons, 2-space indent, 100-char print width, trailing commas in ES5 positions.
 
-- 2-space indentation, single quotes, semicolons
+Run `make format` to auto-format all source files in `src/`. Run `make format-check` (or in CI: `npm run format:check`) to verify without writing.
+
+Style conventions enforced by TypeScript (not Prettier):
+
 - `as const` on literal tuple anchors to preserve narrowed types
-- Component singletons are exported as `const name = new NameClass()` at the bottom of each file
-- No inline comments except where behaviour is non-obvious (see CLAUDE.md)
+- Component singletons exported as `const name = new NameClass()` at the bottom of each file
 
 When TypeScript emits `noUnusedLocals` or `noUnusedParameters` errors, fix the code rather than suppressing with `// @ts-ignore` or `_` prefixes.
 
@@ -94,7 +98,7 @@ When TypeScript emits `noUnusedLocals` or `noUnusedParameters` errors, fix the c
 
 1. Create `src/components/myType.ts` — extend `ComponentDef` (or `ContainerComponentDef`), export a singleton `export const myType = new MyTypeComponent()`
 2. Import the singleton in `src/components/registry.ts` and add it to the appropriate `SIDEBAR_GROUPS` entry
-3. If the component is canvas-only (never appears in the sidebar directly), also add it to the `REGISTRY` map manually alongside `vethEnd` and the netkit ends
+3. If the component is canvas-only (never appears in the sidebar directly), also add it to the `REGISTRY` map manually alongside `vethEnd`, `netkitPrimary`, and `netkitPeer`
 4. Add any Linux ordering position to `src/rules/linuxOrder.ts`
 5. Add any placement constraints as a new rule file in `src/rules/` and register it in `src/rules/index.ts`
 6. Update `src/test/registry.test.ts` (see Tests section above)
