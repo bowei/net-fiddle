@@ -37,8 +37,16 @@ export interface SidebarGroup {
 
 export const SIDEBAR_GROUPS: readonly SidebarGroup[] = [
   {
-    label: 'Network',
-    items: [namespace, netInterface, socket, routingTable, qdisc, vethPair, netkitPair],
+    label: 'OS',
+    items: [namespace, socket],
+  },
+  {
+    label: 'Interface',
+    items: [netInterface, vethPair, netkitPair],
+  },
+  {
+    label: 'Routing',
+    items: [routingTable],
   },
   {
     label: 'nftables',
@@ -51,8 +59,16 @@ export const SIDEBAR_GROUPS: readonly SidebarGroup[] = [
     ],
   },
   {
-    label: 'BPF / TC',
-    items: [xdpProgram, trafficControl, tcBpfProgram, schedBpf, netkitBpf],
+    label: 'TC',
+    items: [trafficControl, qdisc, tcBpfProgram, schedBpf],
+  },
+  {
+    label: 'BPF',
+    items: [xdpProgram],
+  },
+  {
+    label: 'Netkit',
+    items: [netkitBpf],
   },
 ];
 
