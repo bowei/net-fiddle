@@ -4,6 +4,8 @@
 
 Node.js (any recent LTS) and npm. Run `npm install` once to install dependencies; the Makefile does this automatically as a prerequisite.
 
+Go 1.22 or later is required for the scanner (`scanner/`). No separate install step needed — `go build` fetches nothing; the module has no external dependencies.
+
 ---
 
 ## Common commands
@@ -60,11 +62,62 @@ Run `make typecheck` (or `npx tsc --noEmit`) at any point without triggering a f
 
 ---
 
-## Tests
+## Scanner tests
+
+The scanner has integration tests in `scanner/scan_test.go` that build real network topologies and assert on the collected structs. They require **root** and the **test daemon** to be running.
+
+### Starting the test daemon
+
+```bash
+cd scanner
+sudo go run ./cmd/testdaemon
+```
+
+The daemon listens on `http://localhost:7777` by default. Override with `NETFIDDLE_DAEMON_ADDR`.
+
+### Running the scanner tests
+
+In a second terminal (also as root, from `scanner/`):
+
+```bash
+sudo go test -v -count=1 .
+```
+
+Run a single test by name:
+
+```bash
+sudo go test -v -count=1 -run Test_VETHCROSS01 .
+```
+
+Run a section by prefix:
+
+```bash
+sudo go test -v -count=1 -run Test_NFT .
+```
+
+Tests that require clang (BPF stubs) skip automatically if clang is not installed. Tests that require netkit skip if the running kernel does not support it.
+
+### Test structure
+
+Each test calls `requireDaemon(t)`, which skips if the daemon is unreachable and registers `client.Reset()` as cleanup. Tests then call `doScan(t)` which runs `EnumerateNamespaces → CollectAll → linker.Link → builder.Build` and returns a `scanResult` with all three outputs.
+
+Helper shorthand mirrors the spec in `doc/scanner-test-cases.md`:
+
+| Helper | Returns |
+|---|---|
+| `snap(t, sr, name)` | `*NsSnapshot` for the named namespace |
+| `iface(t, snap, name)` | `*InterfaceInfo` with `IfName == name` |
+| `nodeOf(t, sr, id)` | `topology.Node` with `ID == id` |
+| `edgeOf(t, sr, src, tgt)` | `topology.Edge` with matching source/target |
+| `pairOf(t, sr, ns, iface)` | `linker.PairInfo` for `(ns.Inode, iface.IfIndex)` |
+
+---
+
+## Frontend tests
 
 Tests live in `src/test/` and use **Vitest** with a `jsdom` environment.
 
-Currently two test files:
+Currently two frontend test files:
 
 - `src/test/anchorUtils.test.ts` — unit tests for `anchorUtils.ts` (handle ID generation, flow colors, style calculations, `resolveHandles`)
 - `src/test/registry.test.ts` — integration tests for the component registry: field validation, anchor structure, `REGISTRY` lookup, `SIDEBAR_ITEMS` consistency, connector validation
