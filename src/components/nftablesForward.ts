@@ -2,7 +2,7 @@ import { NftablesBase } from './nftablesBase';
 
 export class NftablesForwardComponent extends NftablesBase {
   readonly type = 'nftables-forward';
-  readonly label = 'nft forward';
+  readonly label = 'nftables forward';
   readonly typeLabel = 'nft:fwd';
   readonly configItems = [
     'NF_INET_FORWARD hook',

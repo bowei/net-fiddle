@@ -2,7 +2,7 @@ import { NftablesBase } from './nftablesBase';
 
 export class NftablesPreroutingComponent extends NftablesBase {
   readonly type = 'nftables-prerouting';
-  readonly label = 'nft prerouting';
+  readonly label = 'nftables prerouting';
   readonly typeLabel = 'nft:pre';
   readonly configItems = [
     'NF_INET_PRE_ROUTING hook',

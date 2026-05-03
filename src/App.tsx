@@ -22,7 +22,8 @@ import { REGISTRY, SIDEBAR_GROUPS } from './components/registry';
 import { ContainerComponentDef, type AnchorFlow } from './components/base';
 import { DragContext } from './DragContext';
 import { ALL_RULES, resolveEdgeHandleFlows, type GraphViolation } from './rules';
-import { Upload, Download, Trash2, X, FlaskConical } from 'lucide-react';
+import { Upload, Download, Trash2, X, FlaskConical, Image } from 'lucide-react';
+import { toPng } from 'html-to-image';
 
 const nodeTypes = {
   netNode: CustomNode,
@@ -541,6 +542,60 @@ export default function App() {
     URL.revokeObjectURL(url);
   };
 
+  const doExportPng = async () => {
+    const el = wrapperRef.current?.querySelector<HTMLElement>('.react-flow');
+    if (!el || nodes.length === 0 || !rfInstance) return;
+
+    const PADDING = 40;
+
+    // Bounding box over all nodes in canvas coordinates (positionAbsolute for children).
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const n of nodes) {
+      const pos = n.positionAbsolute ?? n.position;
+      const w = n.width ?? 140;
+      const h = n.height ?? 60;
+      minX = Math.min(minX, pos.x);
+      minY = Math.min(minY, pos.y);
+      maxX = Math.max(maxX, pos.x + w);
+      maxY = Math.max(maxY, pos.y + h);
+    }
+
+    // Convert canvas coords to CSS pixels within the .react-flow element.
+    const { x: vpX, y: vpY, zoom } = rfInstance.getViewport();
+    const clipX = minX * zoom + vpX - PADDING;
+    const clipY = minY * zoom + vpY - PADDING;
+    const clipW = (maxX - minX) * zoom + PADDING * 2;
+    const clipH = (maxY - minY) * zoom + PADDING * 2;
+
+    const dataUrl = await toPng(el, {
+      backgroundColor: '#f9fafb',
+      filter: (node) => {
+        if (node instanceof HTMLElement) {
+          if (node.classList.contains('react-flow__controls')) return false;
+          if (node.classList.contains('edge-tooltip')) return false;
+        }
+        return true;
+      },
+    });
+
+    // Crop the full capture to the content bounding box.
+    const img = new window.Image();
+    img.src = dataUrl;
+    await new Promise<void>((resolve) => { img.onload = () => resolve(); });
+
+    const dpr = window.devicePixelRatio || 1;
+    const canvas = document.createElement('canvas');
+    canvas.width = clipW * dpr;
+    canvas.height = clipH * dpr;
+    const ctx = canvas.getContext('2d')!;
+    ctx.drawImage(img, clipX * dpr, clipY * dpr, clipW * dpr, clipH * dpr, 0, 0, clipW * dpr, clipH * dpr);
+
+    Object.assign(document.createElement('a'), {
+      href: canvas.toDataURL('image/png'),
+      download: 'net-fiddle.png',
+    }).click();
+  };
+
   const doImport = () => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -604,6 +659,9 @@ export default function App() {
           </button>
           <button className="btn btn-success" onClick={doExport}>
             <Download size={14} /> Export
+          </button>
+          <button className="btn btn-secondary" onClick={doExportPng}>
+            <Image size={14} /> Save PNG
           </button>
           <button className="btn btn-danger" onClick={clearAll}>
             <Trash2 size={14} /> Clear All

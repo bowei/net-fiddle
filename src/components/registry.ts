@@ -1,7 +1,7 @@
 import type { ComponentDef } from './base';
 import { namespace } from './namespace';
 import { netInterface } from './netInterface';
-import { routingTable } from './routingTable';
+import { routingTable } from './routing';
 import { trafficControl } from './tcIngress';
 import { xdpProgram } from './xdp';
 import { tcBpfProgram } from './tcIngressBpf';

@@ -2,7 +2,7 @@ import { NftablesBase } from './nftablesBase';
 
 export class NftablesOutputComponent extends NftablesBase {
   readonly type = 'nftables-output';
-  readonly label = 'nft output';
+  readonly label = 'nftables output';
   readonly typeLabel = 'nft:out';
   readonly configItems = [
     'NF_INET_LOCAL_OUT hook',

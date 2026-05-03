@@ -2,7 +2,7 @@ import { NftablesBase } from './nftablesBase';
 
 export class NftablesInputComponent extends NftablesBase {
   readonly type = 'nftables-input';
-  readonly label = 'nft input';
+  readonly label = 'nftables input';
   readonly typeLabel = 'nft:input';
   readonly configItems = [
     'NF_INET_LOCAL_IN hook',

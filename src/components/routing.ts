@@ -21,7 +21,7 @@ export class RoutingTableComponent extends ComponentDef {
   // S: two outputs — local delivery and forwarding/egress output.
   readonly anchors = [
     { side: 'N', count: 1, flow: 'any' as const, connector: 'in' as const },
-    { side: 'S', count: 2, flow: 'any' as const, connector: 'out' as const },
+    { side: 'S', count: 1, flow: 'any' as const, connector: 'out' as const },
   ] as const;
 }
 

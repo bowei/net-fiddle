@@ -2,7 +2,7 @@ import { NftablesBase } from './nftablesBase';
 
 export class NftablesPostroutingComponent extends NftablesBase {
   readonly type = 'nftables-postrouting';
-  readonly label = 'nft postrouting';
+  readonly label = 'nftables postrouting';
   readonly typeLabel = 'nft:post';
   readonly configItems = [
     'NF_INET_POST_ROUTING hook',

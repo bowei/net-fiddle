@@ -3,7 +3,7 @@ import { REGISTRY, SIDEBAR_ITEMS, SIDEBAR_GROUPS } from '../components/registry'
 import { ComponentDef, ContainerComponentDef } from '../components/base';
 import { namespace } from '../components/namespace';
 import { netInterface } from '../components/netInterface';
-import { routingTable } from '../components/routingTable';
+import { routingTable } from '../components/routing';
 import { trafficControl } from '../components/tcIngress';
 import { xdpProgram } from '../components/xdp';
 import { tcBpfProgram } from '../components/tcIngressBpf';
