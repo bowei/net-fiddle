@@ -34,8 +34,6 @@ func Build(snapshots []collector.NsSnapshot, pairs map[linker.PairKey]linker.Pai
 		})
 	}
 
-	netkitSeen := make(map[string]bool) // pairID → primary already assigned
-
 	for _, snap := range snapshots {
 		nsID := "ns-" + snap.Ns.Name
 
@@ -105,8 +103,7 @@ func Build(snapshots []collector.NsSnapshot, pairs map[linker.PairKey]linker.Pai
 				vethPairID = pairInfo.PairID
 			case "netkit":
 				vethPairID = pairInfo.PairID
-				if !netkitSeen[pairInfo.PairID] {
-					netkitSeen[pairInfo.PairID] = true
+				if iface.NetkitMode != "" {
 					nodeType = "netkit-primary"
 				} else {
 					nodeType = "netkit-peer"

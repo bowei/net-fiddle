@@ -12,8 +12,10 @@ type NsInfo struct {
 type InterfaceInfo struct {
 	IfIndex     int
 	IfName      string
-	Kind        string // "ether", "veth", "netkit", "loopback", etc.
-	PeerIfIndex int    // 0 if not a pair type
+	Kind        string  // "ether", "veth", "netkit", "loopback", etc.
+	PeerIfIndex int     // 0 if not a pair type
+	LinkNetNsID *int    // nsid of peer namespace (nil if same ns or unknown)
+	NetkitMode  string  // "l3" or "l2" if this is netkit primary end; "" for peer end
 	Flags       []string
 }
 
@@ -52,4 +54,5 @@ type NsSnapshot struct {
 	Qdiscs     []QdiscInfo
 	HasRoutes  bool
 	Sockets    []SocketInfo
+	NsIDMap    map[int]uint64 // nsid → inode, from "ip netns list-id" run inside this ns
 }

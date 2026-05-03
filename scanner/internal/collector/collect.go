@@ -22,6 +22,7 @@ func CollectAll(ns NsInfo, noSockets bool) NsSnapshot {
 	snap.NftHooks = collectNft(ns.Path)
 	snap.Qdiscs = collectQdiscs(ns.Path, snap.Interfaces)
 	snap.HasRoutes = collectRoutes(ns.Path)
+	snap.NsIDMap = collectNsIDMap(ns.Path)
 	if !noSockets {
 		snap.Sockets = collectSockets(ns.Path)
 	}
@@ -31,14 +32,16 @@ func CollectAll(ns NsInfo, noSockets bool) NsSnapshot {
 // ---- interface collection ----
 
 type ipLinkEntry struct {
-	IfIndex  int      `json:"ifindex"`
-	IfName   string   `json:"ifname"`
-	LinkType string   `json:"link_type"`
-	Flags    []string `json:"flags"`
-	LinkInfo *struct {
+	IfIndex     int      `json:"ifindex"`
+	IfName      string   `json:"ifname"`
+	LinkType    string   `json:"link_type"`
+	Flags       []string `json:"flags"`
+	LinkNetNsID *int     `json:"link_netnsid"`
+	LinkInfo    *struct {
 		InfoKind string `json:"info_kind"`
 		InfoData *struct {
-			PeerIfIndex int `json:"peer_ifindex"`
+			PeerIfIndex int    `json:"peer_ifindex"`
+			Mode        string `json:"mode"`
 			Peer        *struct {
 				IfIndex int `json:"ifindex"`
 			} `json:"peer"`
@@ -75,6 +78,7 @@ func collectInterfaces(nsPath string) []InterfaceInfo {
 		}
 
 		var peerIfIndex int
+		var netkitMode string
 		if e.LinkInfo != nil {
 			if e.LinkInfo.InfoKind == "netkit" {
 				kind = "netkit"
@@ -85,6 +89,7 @@ func collectInterfaces(nsPath string) []InterfaceInfo {
 				} else if e.LinkInfo.InfoData.Peer != nil {
 					peerIfIndex = e.LinkInfo.InfoData.Peer.IfIndex
 				}
+				netkitMode = e.LinkInfo.InfoData.Mode
 			}
 		}
 
@@ -93,6 +98,8 @@ func collectInterfaces(nsPath string) []InterfaceInfo {
 			IfName:      e.IfName,
 			Kind:        kind,
 			PeerIfIndex: peerIfIndex,
+			LinkNetNsID: e.LinkNetNsID,
+			NetkitMode:  netkitMode,
 			Flags:       e.Flags,
 		})
 	}
@@ -337,6 +344,42 @@ func collectSockets(nsPath string) []SocketInfo {
 			}
 			seen[key] = true
 			result = append(result, SocketInfo{Comm: p.Name, PID: p.PID})
+		}
+	}
+	return result
+}
+
+// ---- nsid → inode map ----
+
+func collectNsIDMap(nsPath string) map[int]uint64 {
+	out, err := runInNs(nsPath, "ip", "-j", "netns", "list-id")
+	if err != nil {
+		return nil
+	}
+
+	var raw []map[string]json.RawMessage
+	if err := json.Unmarshal(out, &raw); err != nil {
+		log.Printf("ip netns list-id parse in %s: %v", nsPath, err)
+		return nil
+	}
+
+	result := make(map[int]uint64)
+	for _, obj := range raw {
+		var nsid int
+		var inode uint64
+		if v, ok := obj["nsid"]; ok {
+			_ = json.Unmarshal(v, &nsid)
+		}
+		// iproute2 >= 5.9 uses "nsnsid"; try common variants
+		for _, key := range []string{"nsnsid", "peer-ns", "peer_ns"} {
+			if v, ok := obj[key]; ok {
+				if json.Unmarshal(v, &inode) == nil && inode != 0 {
+					break
+				}
+			}
+		}
+		if inode != 0 {
+			result[nsid] = inode
 		}
 	}
 	return result
