@@ -1,4 +1,5 @@
-.PHONY: build test typecheck dev format format-check clean
+.PHONY: build test typecheck dev format format-check clean \
+        scanner-build scanner-test
 
 build: node_modules
 	npm run build
@@ -22,5 +23,12 @@ format: node_modules
 format-check: node_modules
 	npm run format:check
 
+scanner-build:
+	cd scanner && CGO_ENABLED=0 go build -o net-fiddle-scan ./cmd/net-fiddle-scan
+
+scanner-test:
+	cd scanner && go test ./...
+
 clean:
 	rm -rf dist node_modules
+	rm -f scanner/net-fiddle-scan
