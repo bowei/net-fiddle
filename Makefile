@@ -1,5 +1,5 @@
 .PHONY: build test typecheck dev format format-check clean \
-        scanner-build scanner-test
+        scanner-build scanner-test testdaemon-build
 
 build: node_modules
 	npm run build
@@ -29,6 +29,9 @@ scanner-build:
 scanner-test:
 	cd scanner && go test ./...
 
+testdaemon-build:
+	cd scanner && CGO_ENABLED=0 go build -o testdaemon ./cmd/testdaemon
+
 clean:
 	rm -rf dist node_modules
-	rm -f scanner/net-fiddle-scan
+	rm -f scanner/net-fiddle-scan scanner/testdaemon
