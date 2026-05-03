@@ -68,17 +68,36 @@ function CustomNode({ id, data, selected }: NodeProps<NetNodeData>) {
     return { ...h, dynSide };
   });
 
-  // Count how many handles land on each dynamic side for even spacing.
-  const sideTotals = new Map<CardinalSide, number>();
-  for (const h of withDynSide) sideTotals.set(h.dynSide, (sideTotals.get(h.dynSide) ?? 0) + 1);
+  // Group handles by dynamic side.
+  const bySide = new Map<CardinalSide, typeof withDynSide>();
+  for (const h of withDynSide) {
+    if (!bySide.has(h.dynSide)) bySide.set(h.dynSide, []);
+    bySide.get(h.dynSide)!.push(h);
+  }
 
-  // Assign per-side index in declaration order.
-  const sideIdx = new Map<CardinalSide, number>();
-  const positioned = withDynSide.map((h) => {
-    const idx = sideIdx.get(h.dynSide) ?? 0;
-    sideIdx.set(h.dynSide, idx + 1);
-    return { ...h, dynIdx: idx, dynTotal: sideTotals.get(h.dynSide)! };
-  });
+  // Sort each side's handles by the connected peer's coordinate along that side
+  // (x for N/S, y for E/W) to minimise line crossings. Handles with no connection
+  // use this node's own centre coordinate so stable sort preserves their order.
+  for (const [side, group] of bySide) {
+    const isNS = side === 'N' || side === 'S';
+    group.sort((a, b) => {
+      const ca = connectedCenter.get(a.id);
+      const cb = connectedCenter.get(b.id);
+      const ka = ca ? (isNS ? ca.x : ca.y) : (isNS ? thisCx : thisCy);
+      const kb = cb ? (isNS ? cb.x : cb.y) : (isNS ? thisCx : thisCy);
+      return ka - kb;
+    });
+  }
+
+  // Build dynIdx from sorted position within each side group.
+  const dynIdxMap = new Map<string, number>();
+  for (const group of bySide.values()) group.forEach((h, i) => dynIdxMap.set(h.id, i));
+
+  const positioned = withDynSide.map((h) => ({
+    ...h,
+    dynIdx: dynIdxMap.get(h.id)!,
+    dynTotal: bySide.get(h.dynSide)!.length,
+  }));
 
   // Tell ReactFlow to re-measure handle DOM positions whenever side assignments change.
   // Without this the edge-routing store retains stale coordinates.
