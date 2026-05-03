@@ -123,19 +123,20 @@ Execution model: all subsequent collectors are invoked via `nsenter --net=/proc/
 
 ### Interface collection — `InterfaceCollector`
 
-Command: `ip -j link show`
+Command: `ip -j -d link show`
 
 For each interface:
 
 | Attribute | Source field | Notes |
 |---|---|---|
 | Name | `ifname` | |
-| Type | `link_type` | `"ether"` → `interface`; `"veth"` → `veth-end`; detected separately for netkit |
-| Peer ifindex | `linkinfo.info_slave_data.peer_ifindex` (for veth) | Used by `PairLinker` |
-| Peer netns id | `link_netnsid` | Identifies which namespace holds the peer |
+| Kind | `linkinfo.info_kind` | `"veth"` or `"netkit"`; otherwise derived from `link_type` |
+| Peer ifindex | `linkinfo.info_data.peer_ifindex` | Used by `PairLinker` |
+| Peer netns id | `link_netnsid` | nsid of the namespace that holds the peer (nil = same namespace) |
+| Netkit mode | `linkinfo.info_data.mode` | `"l3"` or `"l2"` present only on the primary end; empty string on the peer end |
 | Flags | `flags` | `UP`, `LOWER_UP`, etc. |
 
-**Netkit detection**: `ip -j -d link show type netkit` — netkit interfaces report `link_type: "netkit"` in `-d` (details) output. The primary end has `mode: "l3"` or `mode: "l2"` and a `peer_ifindex`; the peer end has a matching `peer_ifindex` in the peer namespace.
+**Netkit primary vs peer**: the primary end has `linkinfo.info_data.mode` set to `"l3"` or `"l2"`; the peer end omits the `mode` field. This is the authoritative way to distinguish them — do not rely on enumeration order.
 
 Interfaces of type `loopback` and `dummy` are skipped.
 
@@ -218,11 +219,17 @@ Sockets in `TIME_WAIT` or `CLOSE_WAIT` are skipped; only `LISTEN`, `ESTABLISHED`
 
 Veth and netkit interfaces exist in two namespaces. After all `NsCollector` runs complete:
 
-1. Build a map: `(ns_inode, ifindex) → InterfaceInfo`
-2. For each interface with a `peer_ifindex` and `link_netnsid`, resolve the peer namespace inode via `/proc/<pid>/net/if_inet6` or the nsid→inode table from `ip -j netns list` (which maps nsid to inode for the current namespace).
-3. Link the two ends: assign a shared `vethPairId` (`"veth-pair-N"` or `"netkit-pair-N"`).
+1. **Build a lookup index**: `(ns_inode, ifindex) → (InterfaceInfo, NsSnapshot)`.
+2. **Resolve peer namespace**: for each interface with `peer_ifindex`:
+   - If `link_netnsid` is set and the source snapshot's `NsIDMap` (built from `ip -j netns list-id` run inside that namespace) maps that nsid to an inode, look up the target snapshot by inode directly.
+   - If `link_netnsid` is nil, the peer is in the same namespace.
+   - Fallback: scan all snapshots for an interface whose `ifindex == peer_ifindex && peer_ifindex == our_ifindex` (bidirectional confirmation doubles as the fallback search predicate).
+3. **Bidirectional confirmation**: before assigning a pair, verify `A.peer_ifindex == B.ifindex && B.peer_ifindex == A.ifindex`. This guards against accidental ifindex collisions across unrelated namespaces.
+4. **Assign pair ID**: `"veth-pair-N"` or `"netkit-pair-N"` shared by both ends.
 
-If a peer namespace is not enumerated (e.g. a container that exited between scans), the interface is treated as a plain `interface` node with a note in stderr.
+The `NsIDMap` is populated per-snapshot by `ip -j netns list-id` executed inside each namespace. This command lists all nsids visible from that namespace and their corresponding inode numbers.
+
+If a peer namespace is not enumerated (e.g. a container that exited between scans), the interface is treated as a plain `interface` node with a note on stderr.
 
 ---
 
