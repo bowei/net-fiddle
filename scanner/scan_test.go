@@ -945,11 +945,11 @@ func Test_NFT03_MultipleHooksFromOneTable(t *testing.T) {
 	}
 	if err := c.NftScript("ns-a", `
 table inet filter {
-  chain pre  { type filter hook prerouting  priority 0; }
-  chain in   { type filter hook input       priority 0; }
-  chain fwd  { type filter hook forward     priority 0; }
-  chain out  { type filter hook output      priority 0; }
-  chain post { type filter hook postrouting priority 0; }
+  chain pre      { type filter hook prerouting  priority 0; }
+  chain in       { type filter hook input       priority 0; }
+  chain fwd_hook { type filter hook forward     priority 0; }
+  chain out      { type filter hook output      priority 0; }
+  chain post     { type filter hook postrouting priority 0; }
 }`); err != nil {
 		t.Fatalf("NftScript: %v", err)
 	}
@@ -979,8 +979,12 @@ func Test_NFT04_MultipleTablesAtSameHookCollapsed(t *testing.T) {
 		t.Fatalf("CreateNs: %v", err)
 	}
 	if err := c.NftScript("ns-a", `
-table inet filter { chain in { type filter hook input priority 0; } }
-table inet mangle { chain in { type filter hook input priority -50; } }
+table inet filter {
+  chain in { type filter hook input priority 0; }
+}
+table inet mangle {
+  chain in { type filter hook input priority -50; }
+}
 `); err != nil {
 		t.Fatalf("NftScript: %v", err)
 	}
@@ -1016,8 +1020,12 @@ func Test_NFT05_BridgeAndNetdevIgnored(t *testing.T) {
 		t.Fatalf("CreateNs: %v", err)
 	}
 	if err := c.NftScript("ns-a", `
-table inet filter { chain in { type filter hook input priority 0; } }
-table bridge btable { chain pre { type filter hook prerouting priority 0; } }
+table inet filter {
+  chain in { type filter hook input priority 0; }
+}
+table bridge btable {
+  chain pre { type filter hook prerouting priority 0; }
+}
 `); err != nil {
 		t.Fatalf("NftScript: %v", err)
 	}

@@ -25,6 +25,7 @@ format-check: node_modules
 
 scanner-build:
 	cd scanner && CGO_ENABLED=0 go build -o net-fiddle-scan ./cmd/net-fiddle-scan
+	cd scanner && CGO_ENABLED=0 go test -c .
 
 scanner-test:
 	cd scanner && go test ./...

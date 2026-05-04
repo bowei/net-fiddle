@@ -1,9 +1,13 @@
 package collector
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"log"
 	"os/exec"
+	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -11,7 +15,17 @@ import (
 func runInNs(nsPath string, args ...string) ([]byte, error) {
 	argv := append([]string{"--net=" + nsPath, "--preserve-credentials", "--"}, args...)
 	cmd := exec.Command("nsenter", argv...)
-	return cmd.Output()
+	log.Printf("runInNs %s: nsenter %s", nsPath, strings.Join(argv, " "))
+	out, err := cmd.Output()
+	if err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			log.Printf("runInNs %s: stderr: %s", nsPath, string(exitErr.Stderr))
+		}
+		return out, err
+	}
+	log.Printf("runInNs %s: stdout (%d bytes): %s", nsPath, len(out), string(out))
+	return out, nil
 }
 
 // CollectAll gathers all data for one namespace.
@@ -58,7 +72,7 @@ func collectInterfaces(nsPath string) []InterfaceInfo {
 
 	var entries []ipLinkEntry
 	if err := json.Unmarshal(out, &entries); err != nil {
-		log.Printf("ip link parse in %s: %v", nsPath, err)
+		log.Printf("ip link parse in %s: %v\nraw: %s", nsPath, err, string(out))
 		return nil
 	}
 
@@ -80,8 +94,9 @@ func collectInterfaces(nsPath string) []InterfaceInfo {
 		var peerIfIndex int
 		var netkitMode string
 		if e.LinkInfo != nil {
-			if e.LinkInfo.InfoKind == "netkit" {
-				kind = "netkit"
+			switch e.LinkInfo.InfoKind {
+			case "veth", "netkit":
+				kind = e.LinkInfo.InfoKind
 			}
 			if e.LinkInfo.InfoData != nil {
 				if e.LinkInfo.InfoData.PeerIfIndex != 0 {
@@ -110,7 +125,8 @@ func collectInterfaces(nsPath string) []InterfaceInfo {
 
 type bpftoolNetEntry struct {
 	IfIndex int    `json:"ifindex"`
-	IfName  string `json:"ifname"`
+	IfName  string `json:"ifname"`  // bpftool < 7
+	DevName string `json:"devname"` // bpftool >= 7
 	XDP     []struct {
 		ID   int    `json:"id"`
 		Name string `json:"name"`
@@ -118,7 +134,8 @@ type bpftoolNetEntry struct {
 	TC []struct {
 		ID         int    `json:"id"`
 		Name       string `json:"name"`
-		AttachType string `json:"attach_type"`
+		AttachType string `json:"attach_type"` // bpftool < 7: "ingress"/"egress"
+		Kind       string `json:"kind"`        // bpftool >= 7: "clsact/ingress"
 	} `json:"tc"`
 }
 
@@ -135,26 +152,39 @@ func collectBpf(nsPath string, ifaces []InterfaceInfo) []BpfAttachment {
 
 	var entries []bpftoolNetEntry
 	if err := json.Unmarshal(out, &entries); err != nil {
-		log.Printf("bpftool parse in %s: %v", nsPath, err)
+		log.Printf("bpftool parse in %s: %v\nraw: %s", nsPath, err, string(out))
 		return nil
 	}
 
 	var result []BpfAttachment
 	for _, e := range entries {
+		ifName := e.IfName
+		if ifName == "" {
+			ifName = e.DevName
+		}
 		for _, x := range e.XDP {
 			result = append(result, BpfAttachment{
-				IfName:     e.IfName,
+				IfName:     ifName,
 				ProgID:     x.ID,
 				ProgName:   x.Name,
 				AttachType: "xdp",
 			})
 		}
 		for _, t := range e.TC {
+			attachType := t.AttachType
+			if attachType == "" {
+				// bpftool >= 7 encodes direction in Kind as "clsact/ingress" or "clsact/egress"
+				if strings.HasSuffix(t.Kind, "/ingress") {
+					attachType = "ingress"
+				} else if strings.HasSuffix(t.Kind, "/egress") {
+					attachType = "egress"
+				}
+			}
 			result = append(result, BpfAttachment{
-				IfName:     e.IfName,
+				IfName:     ifName,
 				ProgID:     t.ID,
 				ProgName:   t.Name,
-				AttachType: t.AttachType,
+				AttachType: attachType,
 			})
 		}
 	}
@@ -181,7 +211,7 @@ func collectNft(nsPath string) []NftHook {
 		Nftables []json.RawMessage `json:"nftables"`
 	}
 	if err := json.Unmarshal(out, &root); err != nil {
-		log.Printf("nft parse in %s: %v", nsPath, err)
+		log.Printf("nft parse in %s: %v\nraw: %s", nsPath, err, string(out))
 		return nil
 	}
 
@@ -243,7 +273,7 @@ func collectQdiscs(nsPath string, ifaces []InterfaceInfo) []QdiscInfo {
 			Kind string `json:"kind"`
 		}
 		if err := json.Unmarshal(out, &qdiscs); err != nil {
-			log.Printf("tc qdisc parse for %s in %s: %v", iface.IfName, nsPath, err)
+			log.Printf("tc qdisc parse for %s in %s: %v\nraw: %s", iface.IfName, nsPath, err, string(out))
 			continue
 		}
 
@@ -303,16 +333,23 @@ type ssProc struct {
 	Name string `json:"name"`
 }
 
+// ssProcsRe matches one process entry inside ss's users:(...) field.
+var ssProcsRe = regexp.MustCompile(`"([^"]+)",pid=(\d+)`)
+
 func collectSockets(nsPath string) []SocketInfo {
 	out, err := runInNs(nsPath, "ss", "-j", "-tunap")
 	if err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) && bytes.Contains(exitErr.Stderr, []byte("invalid option")) {
+			return collectSocketsText(nsPath)
+		}
 		log.Printf("ss in %s: %v", nsPath, err)
 		return nil
 	}
 
 	var entries []ssEntry
 	if err := json.Unmarshal(out, &entries); err != nil {
-		log.Printf("ss parse in %s: %v", nsPath, err)
+		log.Printf("ss parse in %s: %v\nraw: %s", nsPath, err, string(out))
 		return nil
 	}
 
@@ -349,6 +386,62 @@ func collectSockets(nsPath string) []SocketInfo {
 	return result
 }
 
+// collectSocketsText is a fallback for systems where ss doesn't support -j.
+// It parses the plain-text output of "ss -tunap".
+func collectSocketsText(nsPath string) []SocketInfo {
+	out, err := runInNs(nsPath, "ss", "-tunap")
+	if err != nil {
+		log.Printf("ss (text) in %s: %v", nsPath, err)
+		return nil
+	}
+
+	type pidComm struct {
+		pid  int
+		comm string
+	}
+	seen := make(map[pidComm]bool)
+	var result []SocketInfo
+
+	for _, line := range bytes.Split(out, []byte("\n")) {
+		fields := strings.Fields(string(line))
+		if len(fields) < 2 {
+			continue
+		}
+		state := strings.ToUpper(fields[1])
+		if state == "ESTAB" {
+			state = "ESTABLISHED"
+		}
+		switch state {
+		case "LISTEN", "ESTABLISHED", "CONNECTED":
+		default:
+			continue
+		}
+
+		// Locate the users:(...) field anywhere on the line.
+		var usersField string
+		for _, f := range fields {
+			if strings.HasPrefix(f, "users:(") {
+				usersField = f
+				break
+			}
+		}
+		if usersField == "" {
+			continue
+		}
+
+		for _, m := range ssProcsRe.FindAllStringSubmatch(usersField, -1) {
+			pid, _ := strconv.Atoi(m[2])
+			key := pidComm{pid: pid, comm: m[1]}
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			result = append(result, SocketInfo{Comm: m[1], PID: pid})
+		}
+	}
+	return result
+}
+
 // ---- nsid → inode map ----
 
 func collectNsIDMap(nsPath string) map[int]uint64 {
@@ -359,7 +452,7 @@ func collectNsIDMap(nsPath string) map[int]uint64 {
 
 	var raw []map[string]json.RawMessage
 	if err := json.Unmarshal(out, &raw); err != nil {
-		log.Printf("ip netns list-id parse in %s: %v", nsPath, err)
+		log.Printf("ip netns list-id parse in %s: %v\nraw: %s", nsPath, err, string(out))
 		return nil
 	}
 
